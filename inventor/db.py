@@ -1,3 +1,6 @@
+import sys
+import decimal
+
 from psycopg2.pool import ThreadedConnectionPool
 from psycopg2 import DatabaseError
 import psycopg2
@@ -51,7 +54,8 @@ class FixedDict(dict):
 
 class Entity(object):
     name = 'entity'
-    def __init__(self, values=None):
+    def __init__(self, database, values=None):
+        self.database = database
         self.record = None
         self.fill(values)
 
@@ -62,7 +66,8 @@ class Entity(object):
         return self.record[key]
 
     def __setitem__(self, key, value):
-        self.record[key] = value
+        value = self.database.cast_value(self.name,key,value)
+        self.record[key] = value        
 
     def is_dirty(self, key=None):
         """Checks if given key is dirty.
@@ -145,16 +150,25 @@ class Database(object):
             query,subvals = self._labels_query(labels, fields, joiner)
         else:
             query,subvals = self._select_query(where, subvals, fields)
-        return [Item(row) for row in self.execute_query(query,subvals)]
+        return [Item(self,row) for row in self.execute_query(query,subvals)]
 
-    def get_item(self, item_id, as_row=False):
+    def get_item(self, item_id=None, as_dict=False):
+        """Returns the Item with given `item_id`.
+        If no id is provided, returns a new Item.
+        When `as_dict` is True, the item is returned as a plain dict.
+        """
+        if not item_id:
+            r = Item(self)
+            if as_dict: return dict(r.record)
+            return r
+
         r = self.execute_query(
-            'SELECT * FROM item WHERE id = %s', (item_id,))        
+            'SELECT * FROM item WHERE id = %s', (item_id,))
         try:
-            if as_row:
-                return r[0]
+            if as_dict:
+                return dict(r[0])
             else:
-                return Item(r[0])
+                return Item(self,r[0])
         except IndexError:
             raise NoSuchItemError('id: '+str(item_id))
 
@@ -187,7 +201,7 @@ class Database(object):
         itemid = self.write_query(query, subvals)
         if item['id']:
             itemid = item['id']
-        newitem = self.get_item(itemid, as_row=True)
+        newitem = self.get_item(itemid, as_dict=True)
         item.fill(newitem)
 
     def attach_labels(self, item_id, labels):
@@ -205,6 +219,41 @@ class Database(object):
         q = 'DELETE FROM item_label WHERE label = %s AND entity_id = %s'        
         for l in labels:
             self.execute_query(q, (l, item_id))
+
+    def cast_value(self, entity_type, column, value):
+        """Attempt to cast given `value` to its proper type 
+        based on `COLUMN_TYPES`.
+        The resulting type should be the python type which corresponds 
+        to the sql type in `COLUMN_TYPES`.
+        """
+        conn = self.pool.getconn()
+        cur = conn.cursor()
+        tmap = COLUMN_TYPES[entity_type]
+
+        sqltype = None
+
+        sqltype = tmap[column]
+
+        if isinstance(value, unicode):
+            value = value.encode('utf-8')
+        elif value is None:
+            pass
+        elif isinstance(value, bool):
+            #special case for booleans (cause pg wants 'true', lower case)
+            pass
+        else:
+            value = str(value)
+                        
+        res = None
+        try:
+            res = cur.cast(sqltype, value)
+        except (psycopg2.Error, decimal.InvalidOperation):
+            msg = '"{}" is not a valid value for column "{}" of entity "{}"'\
+                .format(value, column, entity_type)
+            raise TypeError(msg), None, sys.exc_info()[2]
+        finally:
+            self.pool.putconn(conn)
+        return res        
 
     def get_column_types(self, entities):
         """Make the type map for entity tables.
