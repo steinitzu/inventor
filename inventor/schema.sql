@@ -17,7 +17,7 @@ CREATE TABLE item(
         name VARCHAR,
         part_numbers TEXT,
         location VARCHAR,
-        sale_price NUMERIC,
+        sale_price NUMERIC DEFAULT 0,
         quantity NUMERIC,
         unit VARCHAR DEFAULT 'pcs',
         condition TEXT,
