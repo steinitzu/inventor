@@ -3,14 +3,8 @@ from psycopg2 import DatabaseError
 import psycopg2
 import psycopg2.extras
 
-
-ITEM_FIELDS = (
-    'id', 'created_at', 'modified_at', 
-    'name', 'part_numbers', 'location', 'sale_price',
-    'quantity', 'unit', 'condition', 'info', 'picture_path')
-ITEM_FIELDS_WRITEABLE = (
-    'name', 'part_numbers', 'location', 'sale_price',
-    'quantity', 'unit', 'condition', 'info', 'picture_path')
+#{'entity':{'column':psqltype}}
+COLUMN_TYPES = {}
 
 class NoSuchItemError(Exception):
     pass
@@ -18,8 +12,7 @@ class NoSuchItemError(Exception):
 class ThreadedPool(ThreadedConnectionPool):    
 
     def _connect(self, key=None):
-        """
-        Modified from superclass.\n
+        """Modified from superclass.\n
         New connections are unicode connections.
         """
         conn = psycopg2.connect(*self._args, **self._kwargs)
@@ -56,13 +49,14 @@ class FixedDict(dict):
             super(FixedDict, self).__setitem__(key, value)
             self.dirty[key] = True
 
-class Item(object):
-    
+class Entity(object):
+    name = 'entity'
     def __init__(self, values=None):
+        self.record = None
         self.fill(values)
 
     def fill(self, values=None):
-        self.record = FixedDict(ITEM_FIELDS, values)
+        self.record = FixedDict(COLUMN_TYPES[self.name].keys(), values)
 
     def __getitem__(self, key):
         return self.record[key]
@@ -72,12 +66,15 @@ class Item(object):
 
     def is_dirty(self, key=None):
         """Checks if given key is dirty.
-        Returns True if any field has been modified if no key is provided.
+        Returns True if any field has been modified and no key is provided.
         """
         if not key:
+            #this double negative is not an error
             return not not self.record.dirty
         return key in self.record.dirty
-        
+
+class Item(Entity):
+    name = 'item'
 
 class Database(object):
 
@@ -85,17 +82,18 @@ class Database(object):
         self.pool = ThreadedConnectionPool(
             4, 15,
             'dbname=inventor host=deathstar user=steini')
+        COLUMN_TYPES.update(self.get_column_types(['item']))
 
     def _labels_query(self, labels, fields='*', joiner='and'):
         """Generate a query matching given labels.        
         """
-        q = 'SELECT DISTINCT {0} FROM items AS i WHERE'
+        q = 'SELECT DISTINCT {0} FROM item AS i WHERE'
         joiner = joiner.lower()
         clauses = []
         subvals = []
         for label in labels:
             if joiner == 'and':
-                clause = '''EXISTS (SELECT 1 FROM item_labels AS il 
+                clause = '''EXISTS (SELECT 1 FROM item_label AS il 
                          WHERE il.label = %s AND il.entity_id = i.id)'''
             else:
                 clause = '(label = %s)'
@@ -105,26 +103,30 @@ class Database(object):
         clause = (' '+joiner+' ').join(clauses)
         if joiner == 'or':
             clause = '''WHERE id IN (
-                    SELECT entity_id FROM labels WHERE 
+                    SELECT entity_id FROM item_labels WHERE 
                     ({0}));'''.format(clause)            
         return q.format(fields)+' '+clause,subvals
 
     def _select_query(self, where='', subvals=(), fields='*'):
-        q = 'SELECT {0} FROM items '.format(fields)
+        q = 'SELECT {0} FROM item '.format(fields)
         return q+' '+where, subvals
 
-    def execute_query(self, query, subvals):
+    def execute_query(self, query, subvals=()):
         conn = self.pool.getconn()
         try:
             cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
             cur.execute(query, subvals)
             conn.commit()
-            result = cur.fetchall()
+            try:
+                result = cur.fetchall()
+            except psycopg2.ProgrammingError:
+                #should just mean there are no results
+                result = [] 
         finally:
             self.pool.putconn(conn)
         return result
 
-    def write_query(self, query, subvals):
+    def write_query(self, query, subvals=()):
         """Run a query and return last modified id.
         """
         conn = self.pool.getconn()
@@ -147,7 +149,7 @@ class Database(object):
 
     def get_item(self, item_id, as_row=False):
         r = self.execute_query(
-            'SELECT * FROM items WHERE id = %s', (item_id,))        
+            'SELECT * FROM item WHERE id = %s', (item_id,))        
         try:
             if as_row:
                 return r[0]
@@ -160,23 +162,27 @@ class Database(object):
         """Save given item to the database.
         """
         #TODO: Don't save when item is clean.
+        cols = COLUMN_TYPES[item.name].keys()
         if item['id']:
-            query = 'UPDATE items SET {0} WHERE id = %s'
+            query = 'UPDATE item SET {0} WHERE id = %s'
             clauses = []
             subvals = []
-            for f in ITEM_FIELDS_WRITEABLE:
+            for f in cols:
                 if item.is_dirty(f):
                     clauses.append(f+' = %s')
                     subvals.append(item[f])
-            subvals.append(item.id)
+            subvals.append(item['id'])
             query = query.format(' , '.join(clauses))
         else:
-            query = 'INSERT INTO items ({0}) VALUES ({1})'
-            fields = ','.join(ITEM_FIELDS_WRITEABLE)
-            subholders = ','.join(['%s' for k in ITEM_FIELDS_WRITEABLE])
+            query = 'INSERT INTO item ({0}) VALUES ({1})'
             subvals = []
-            for f in ITEM_FIELDS_WRITEABLE:
-                subvals.append(item[f])
+            scols = []
+            for f in cols:
+                if item.is_dirty(f):
+                    subvals.append(item[f])
+                    scols.append(f)
+            fields = ','.join(scols)
+            subholders = ','.join(['%s' for k in scols])
             query = query.format(fields, subholders)
         itemid = self.write_query(query, subvals)
         if item['id']:
@@ -188,7 +194,7 @@ class Database(object):
         """Attach given list of labels to given item_id."""
         if isinstance(item_id, Item):
             item_id = item_id['id']
-        q = 'INSERT INTO item_labels (label, entity_id) VALUES (%s, %s)'
+        q = 'INSERT INTO item_label (label, entity_id) VALUES (%s, %s)'
         for l in labels:
             self.write_query(q, (l,item_id))
 
@@ -196,6 +202,40 @@ class Database(object):
         """Remove given list of labels from given item(id)."""
         if isinstance(item_id, Item):
             item_id = item_id['id']
-        q = 'DELETE FROM item_labels WHERE label = %s AND entity_id = %s'        
+        q = 'DELETE FROM item_label WHERE label = %s AND entity_id = %s'        
         for l in labels:
             self.execute_query(q, (l, item_id))
+
+    def get_column_types(self, entities):
+        """Make the type map for entity tables.
+        `entities` should be a list of table/view names 
+        from the database (e.g. 'items').
+        """
+        tmap = {}
+        typesubs = {
+            'timestamp without time zone' : 'timestamp',
+            'character varying' : 'varchar',
+            'character' : 'char',
+            'boolean' : 'bool',
+            'integer' : 'int4',
+            }
+        q = """SELECT t.table_name,
+            c.column_name, c.data_type 
+            FROM information_schema.tables AS t 
+            INNER JOIN information_schema.columns AS c 
+            ON c.table_name = t.table_name 
+            WHERE t.table_name = %s"""
+    
+        oidq = 'SELECT oid FROM pg_type WHERE typname = %s'
+     
+        for entity in entities:
+            data = self.execute_query(q, (entity,))
+            tmap[entity] = {}
+            for row in data:
+                strtype = row['data_type']
+                try:
+                    strtype = typesubs[strtype]
+                except KeyError: pass
+                coloidtype = int(self.execute_query(oidq, (strtype,))[0][0])
+                tmap[entity][row['column_name']] = coloidtype
+        return tmap
