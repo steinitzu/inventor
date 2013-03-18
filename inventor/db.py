@@ -6,7 +6,7 @@ from psycopg2 import DatabaseError
 import psycopg2
 import psycopg2.extras
 
-#{'entity':{'column':psqltype}}
+#{'entity':{'column':psqltype}} (generated in Database on __init__)
 COLUMN_TYPES = {}
 
 class NoSuchItemError(Exception):
@@ -89,7 +89,12 @@ class Database(object):
     def __init__(self):
         self.pool = ThreadedConnectionPool(
             4, 15,
-            'dbname=inventor host=deathstar user=steini')
+            'dbname=inventor host=localhost user=postgres')
+
+        #update the database schema (database must exist)
+        schema = open(os.path.join(__file__, 'schema.sql')).read()
+        self.script(schema)
+
         COLUMN_TYPES.update(self.get_column_types(['item']))
 
     def _labels_query(self, labels, fields='*', joiner='and'):
@@ -133,6 +138,16 @@ class Database(object):
         finally:
             self.pool.putconn(conn)
         return result
+
+    def script(self, script):
+        """Execute an sql script."""
+        conn = self.pool.getconn()
+        try:
+            cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            cur.executemany(script)
+            conn.commit()
+        finally:
+            self.pool.putconn(conn)
 
     def write_query(self, query, subvals=()):
         """Run a query and return last modified id.
