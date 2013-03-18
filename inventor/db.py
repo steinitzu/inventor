@@ -45,6 +45,9 @@ class FixedDict(dict):
                 seti(key, None)
         self.dirty = {}
 
+    def clear_dirty(self):
+        self.dirty = {}
+
     def __setitem__(self, key, value):
         if key not in self:
             raise KeyError('{} is not a valid key.'.format(key))
