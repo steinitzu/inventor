@@ -261,7 +261,8 @@ class Database(object):
             else:
                 return Entity(self,r.next())
         except StopIteration:
-            raise NoSuchEntityError('id: '+str(entity_id))
+            raise NoSuchEntityError('type: {} id: {} '.format(
+                    entity, entity_id))
 
     def upsert_entity(self, obj, entity='item'):
         """Save given entity to the database.
@@ -277,7 +278,7 @@ class Database(object):
                     clauses.append(f+' = %s')
                     subvals.append(obj[f])
             subvals.append(obj['id'])
-            query = query.format(' , '.join(clauses))
+            query = query.format(entity, ' , '.join(clauses))
         else:
             query = 'INSERT INTO {} ({}) VALUES ({})'
             subvals = []
@@ -288,7 +289,7 @@ class Database(object):
                     scols.append(f)
             fields = ','.join(scols)
             subholders = ','.join(['%s' for k in scols])
-            query = query.format(obj, fields, subholders)
+            query = query.format(entity, fields, subholders)
         entityid = self.mutate(query, subvals)
         if obj['id']:
             entityid = obj['id']
