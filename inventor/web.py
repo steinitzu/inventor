@@ -17,4 +17,3 @@ def initialize():
 def search(query):
     items = db.items(query=query)
     return template(items) #pseudocode
-    
