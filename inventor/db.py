@@ -11,6 +11,8 @@ from .util import FixedDict
 
 #{'entity':{'column':psqltype}} (generated in Database on __init__)
 COLUMN_TYPES = {}
+# {'entity_name':['columns'...]} or {'universal':['columns'...]}
+READ_ONLY_COLUMNS = {}
 
 DB_FORMAT_STR = '%s'
 
@@ -42,8 +44,6 @@ class Entity(object):
     database table. Each instance is a single row.
     """
     name = 'entity'
-    # Names of read_only fields
-    read_only = ()
 
     def __init__(self, database, values=None):
         self.database = database
@@ -57,7 +57,8 @@ class Entity(object):
         return self.record[key]
 
     def __setitem__(self, key, value):
-        if key in self.read_only:
+        roc = READ_ONLY_COLUMNS
+        if key in roc['universal']or key in roc[self.name]:
             raise ColumnNotWriteable(key)
         value = self.database.cast_value(self.name,key,value)
         self.record[key] = value
@@ -70,9 +71,6 @@ class Entity(object):
 
 class Item(Entity):
     name = 'item'
-    read_only = ('id', 'created_at', 'modified_at')
-
-
 
 # Query class idea tolen from beets by Adrian Sampson #
 class Query(object):
@@ -161,16 +159,26 @@ class ResultIterator(object):
 
 class Database(object):
 
-    def __init__(self):
-        self.pool = ThreadedConnectionPool(
-            4, 15,
-            'dbname=inventor host=localhost user=postgres')
+    def __init__(self, 
+                 host='localhost', database='inventor', user='', password=''):
+        args = {}
+        if host != 'localhost':
+            args['host'] = host
+        if password:
+            args['password'] = password
+        args['database'] = database
+        args['user'] = user
+
+        self.pool = ThreadedConnectionPool(4, 15, **args)
+            
 
         #update the database schema (database must exist)
-        schema = open(os.path.join(__file__, 'schema.sql')).read()
-        self.script(schema)
+        schema = open(os.path.join(os.path.dirname(__file__), 
+                                   'schema.sql')).read()
+        self.query(schema)
 
         COLUMN_TYPES.update(self.get_column_types(['item']))
+        READ_ONLY_COLUMNS.update(self.get_read_only_columns())
 
     def query(self, query, subvals=()):
         conn = self.pool.getconn()
@@ -187,12 +195,12 @@ class Database(object):
             self.pool.putconn(conn)
         return result
 
-    def script(self, script):
+    def script(self, script, vars):
         """Execute an sql script."""
         conn = self.pool.getconn()
         try:
             cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-            cur.executemany(script)
+            cur.executemany(script, vars)
             conn.commit()
         finally:
             self.pool.putconn(conn)
@@ -212,7 +220,7 @@ class Database(object):
         return result        
 
     def entities(self, labels=None, query=None, entity='item', order='id desc'):
-        normalq = '''SELECT * FROM {entity} AS entity'''.format(entity)
+        normalq = '''SELECT * FROM {} AS entity'''.format(entity)
         labelqueries = []
         queries = []
 
@@ -373,3 +381,19 @@ class Database(object):
                 coloidtype = int(self.query(oidq, (strtype,))[0][0])
                 tmap[entity][row['column_name']] = coloidtype
         return tmap
+
+    def get_read_only_columns(self):
+        """Get the read only columns as a dict.
+        {table_name:[columns]}
+        will always have a universal key for columns which are always 
+        read only regardless of the table.
+        """
+        q = 'SELECT * FROM read_only'
+        d = {}
+        for row in self.query(q):
+            key = row['table_name']
+            if not d.has_key(key):
+                d[key] = []
+            d[key].append(row['column_name'])
+        return d
+

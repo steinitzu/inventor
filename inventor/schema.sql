@@ -1,6 +1,6 @@
 -- MAIN TABLES
 
-CREATE TABLE activity_log(
+CREATE TABLE IF NOT EXISTS activity_log(
         id SERIAL PRIMARY KEY,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -10,7 +10,7 @@ CREATE TABLE activity_log(
         operation TEXT);
 
 
-CREATE TABLE item(
+CREATE TABLE IF NOT EXISTS item(
         id SERIAL PRIMARY KEY,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -24,7 +24,7 @@ CREATE TABLE item(
         info TEXT,
         picture_path TEXT);
 
-CREATE TABLE item_label(
+CREATE TABLE IF NOT EXISTS item_label(
         id SERIAL PRIMARY KEY,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -33,11 +33,23 @@ CREATE TABLE item_label(
         UNIQUE(entity_id, label));
 
 
+-- table holding read only columns of entities
+-- can be either universal (table_name == NULL) or with a specified table name
+CREATE TABLE IF NOT EXISTS read_only(
+        id SERIAL PRIMARY KEY,
+        table_name VARCHAR,
+        column_name VARCHAR,
+        UNIQUE(table_name, column_name));
 
+INSERT INTO read_only(table_name,column_name) 
+    VALUES ('universal','id') ;
+INSERT INTO read_only(table_name,column_name) 
+    VALUES ('universal','created_at');
+INSERT INTO read_only(table_name,column_name) 
+    VALUES ('universal','modified_at');
 
 -- TRIGGERS AND FUNCTIONS
 
---TODO: Prevent writing to common read only columns (id, created_at, modified_at)
 
 
 
@@ -58,11 +70,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_activity_log_trigger ON item;
 CREATE TRIGGER update_activity_log_trigger
 AFTER INSERT OR UPDATE OR DELETE ON item 
 FOR EACH ROW EXECUTE 
 PROCEDURE update_activity_log();
 
+DROP TRIGGER IF EXISTS update_activity_log_trigger ON item_label;
 CREATE TRIGGER update_activity_log_trigger
 AFTER INSERT OR UPDATE OR DELETE ON item_label
 FOR EACH ROW EXECUTE 
@@ -77,16 +91,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_mtime_trigger ON item;
 CREATE TRIGGER update_mtime_trigger
 BEFORE UPDATE ON item
 FOR EACH ROW EXECUTE
 PROCEDURE update_mtime();
 
+DROP TRIGGER IF EXISTS update_mtime_trigger ON item_label;
 CREATE TRIGGER update_mtime_trigger
 BEFORE UPDATE ON item_label
 FOR EACH ROW EXECUTE
 PROCEDURE update_mtime();
 
+DROP TRIGGER IF EXISTS update_mtime_trigger ON activity_log;
 CREATE TRIGGER update_mtime_trigger
 BEFORE UPDATE ON activity_log
 FOR EACH ROW EXECUTE
