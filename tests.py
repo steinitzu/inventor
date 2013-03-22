@@ -9,22 +9,22 @@ class DBTest(unittest.TestCase):
         self.db = db.Database()
         item = db.Item(self.db)
         item['name'] = 'testiboy'
-        self.db.upsert_item(item)
+        self.db.upsert_entity(item)
         self.item = item
 
     def tearDown(self):
-        self.db.execute_query('DELETE FROM item WHERE id = %s',
+        self.db.query('DELETE FROM item WHERE id = %s',
                               (self.item['id'],))
     def test_create_item(self):
         item = db.Item(self.db)
         item['name'] = 'testiboy'
-        self.db.upsert_item(item)
+        self.db.upsert_entity(item)
         assert(isinstance(item['id'], int))
 
     def test_update_item(self):
         self.item['part_numbers'] = 'lolwatup'
-        self.db.upsert_item(self.item)
-        item = self.db.get_item(self.item['id'])
+        self.db.upsert_entity(self.item)
+        item = self.db.get_entity(self.item['id'])
         assert(item['part_numbers'] == 'lolwatup')
 
     def test_wrong_type(self):

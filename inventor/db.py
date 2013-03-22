@@ -1,15 +1,23 @@
 import sys
 import decimal
+import os
 
 from psycopg2.pool import ThreadedConnectionPool
 from psycopg2 import DatabaseError
 import psycopg2
 import psycopg2.extras
 
+from .util import FixedDict
+
 #{'entity':{'column':psqltype}} (generated in Database on __init__)
 COLUMN_TYPES = {}
 
-class NoSuchItemError(Exception):
+DB_FORMAT_STR = '%s'
+
+class NoSuchEntityError(Exception):
+    pass
+
+class ColumnNotWriteable(Exception):
     pass
 
 class ThreadedPool(ThreadedConnectionPool):    
@@ -29,34 +37,14 @@ class ThreadedPool(ThreadedConnectionPool):
             self._pool.append(conn)
         return conn
 
-class FixedDict(dict):
-    """A dict where keys can not be added after creation and keys are marked 
-    as 'dirty' when their values are changed.
-    Accepts a list of `keys` and an optional `values` which should 
-    be a dict compatible object.
-    Any key not in `values` will be implicitly added and given a `None` value.
-    """
-    def __init__(self, keys, values=None):
-        values = values or {}
-        super(FixedDict, self).__init__(values)
-        seti = super(FixedDict, self).__setitem__
-        for key in keys:
-            if not key in self:
-                seti(key, None)
-        self.dirty = {}
-
-    def clear_dirty(self):
-        self.dirty = {}
-
-    def __setitem__(self, key, value):
-        if key not in self:
-            raise KeyError('{} is not a valid key.'.format(key))
-        elif value != self[key]:
-            super(FixedDict, self).__setitem__(key, value)
-            self.dirty[key] = True
-
 class Entity(object):
+    """An Entity is a data structure which represents a 
+    database table. Each instance is a single row.
+    """
     name = 'entity'
+    # Names of read_only fields
+    read_only = ()
+
     def __init__(self, database, values=None):
         self.database = database
         self.record = None
@@ -69,20 +57,107 @@ class Entity(object):
         return self.record[key]
 
     def __setitem__(self, key, value):
+        if key in self.read_only:
+            raise ColumnNotWriteable(key)
         value = self.database.cast_value(self.name,key,value)
-        self.record[key] = value        
+        self.record[key] = value
 
     def is_dirty(self, key=None):
         """Checks if given key is dirty.
         Returns True if any field has been modified and no key is provided.
         """
-        if not key:
-            #this double negative is not an error
-            return not not self.record.dirty
-        return key in self.record.dirty
+        return self.record.is_dirty(key=key)
 
 class Item(Entity):
     name = 'item'
+    read_only = ('id', 'created_at', 'modified_at')
+
+
+
+# Query class idea tolen from beets by Adrian Sampson #
+class Query(object):
+
+    def clause(self):
+        """Return the WHERE clause for given query and subvals iterable.
+        """
+        raise NotImplementedError()
+
+class FieldQuery(Query):
+    def __init__(self, field, pattern):
+        self.field = field
+        self.pattern = pattern
+
+class MatchQuery(FieldQuery):
+    """Looks for exact matches in given field."""
+    
+    def clause(self):        
+        return '{} = {}'.format(
+            self.field, DB_FORMAT_STR), (self.pattern,)
+
+class SubStringQuery(FieldQuery):
+
+    def clause(self):
+        return '{} LIKE %{}%'.format(
+            self.field, DB_FORMAT_STR), (self.pattern,)
+
+class SubStringQueryCaseLess(FieldQuery):
+
+    def clause(self):
+        return '{} ILIKE %{}%'.format(
+            self.field, DB_FORMAT_STR), (self.pattern,)
+
+class LabelQuery(Query):
+    def __init__(self, label, entity='item'):
+        self.label = label
+        self.entity = entity
+
+    def clause(self):
+        c = '''EXISTS (SELECT 1 FROM {}_label AS il 
+            WHERE il.label = {} AND il.entity_id = entity.id)'''.format(
+            self.entity, DB_FORMAT_STR)
+        return c, (self.label,)
+
+
+class MultiQuery(Query):
+    """Makes one query out of many field queries."""
+    
+    def __init__(self, subqueries=()):
+        self.subqueries = [i for i in subqueries]
+
+    def clause_with_joiner(self, joiner='or'):
+
+        clauses = []
+        subvals = []
+        joiner = joiner.lower()
+        for subq in self.subqueries:
+            clause, subs = subq.clause()
+            clause.parts.append('('+clause+')')
+            subvals += subs
+        clause = (' '+joiner+' ').join(clauses)
+        return clause, subvals
+
+    def clause(self):
+        return self.clause_with_joiner('or')
+#
+
+class ResultIterator(object):
+    entity_cls = {'item' : Item}
+    def __init__(self, rows, entity='item', offset=0):
+        self.rows = rows
+        self.entity = self.entity_cls[entity]
+        self.offset = offset
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        try:
+            row = self.rows[self.offset]
+        except:
+            raise StopIteration
+        ent = self.entity(row)
+        self.offset+=1
+        return ent    
 
 class Database(object):
 
@@ -97,34 +172,7 @@ class Database(object):
 
         COLUMN_TYPES.update(self.get_column_types(['item']))
 
-    def _labels_query(self, labels, fields='*', joiner='and'):
-        """Generate a query matching given labels.        
-        """
-        q = 'SELECT DISTINCT {0} FROM item AS i WHERE'
-        joiner = joiner.lower()
-        clauses = []
-        subvals = []
-        for label in labels:
-            if joiner == 'and':
-                clause = '''EXISTS (SELECT 1 FROM item_label AS il 
-                         WHERE il.label = %s AND il.entity_id = i.id)'''
-            else:
-                clause = '(label = %s)'
-            clauses.append(clause)
-            subvals.append(label)
-
-        clause = (' '+joiner+' ').join(clauses)
-        if joiner == 'or':
-            clause = '''WHERE id IN (
-                    SELECT entity_id FROM item_labels WHERE 
-                    ({0}));'''.format(clause)            
-        return q.format(fields)+' '+clause,subvals
-
-    def _select_query(self, where='', subvals=(), fields='*'):
-        q = 'SELECT {0} FROM item '.format(fields)
-        return q+' '+where, subvals
-
-    def execute_query(self, query, subvals=()):
+    def query(self, query, subvals=()):
         conn = self.pool.getconn()
         try:
             cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -149,7 +197,7 @@ class Database(object):
         finally:
             self.pool.putconn(conn)
 
-    def write_query(self, query, subvals=()):
+    def mutate(self, query, subvals=()):
         """Run a query and return last modified id.
         """
         conn = self.pool.getconn()
@@ -163,80 +211,99 @@ class Database(object):
             self.pool.putconn(conn)
         return result        
 
-    def items(self, labels=None, where='', subvals=(), fields='*', joiner='and'):
-        if labels:
-            query,subvals = self._labels_query(labels, fields, joiner)
-        else:
-            query,subvals = self._select_query(where, subvals, fields)
-        return [Item(self,row) for row in self.execute_query(query,subvals)]
+    def entities(self, labels=None, query=None, entity='item', order='id desc'):
+        normalq = '''SELECT * FROM {entity} AS entity'''.format(entity)
+        labelqueries = []
+        queries = []
 
-    def get_item(self, item_id=None, as_dict=False):
-        """Returns the Item with given `item_id`.
-        If no id is provided, returns a new Item.
-        When `as_dict` is True, the item is returned as a plain dict.
+        if labels:
+            labelqueries = [LabelQuery(l, entity) for l in labels]
+        if isinstance(query, Query):
+            queries.append(query)
+        elif isinstance(query, list) or isinstance(query, tuple):
+            [queries.append(q) for q in query]
+        else:
+            raise NotImplementedError(
+                'String queries and whatnot unimplemented')
+        qs = queries+labelqueries
+        q = MultiQuery(qs)
+        clause, subvals = q.clause()
+        if not clause:
+            query = normalq+' ORDER BY'+order
+        else:
+            query = normalq+' WHERE {} ORDER BY {}'.format(clause, order)
+        return ResultIterator(self.query(query,subvals), entity=entity)        
+
+
+    def get_entity(self, entity_id=None, as_dict=False, entity='item'):
+        """Returns the Entity with given `entity_id`.
+        If no id is provided, returns a new Entity.
+        When `as_dict` is True, the entity is returned as a plain dict.
         """
-        if not item_id:
-            r = Item(self)
+        if not entity_id:
+            r = Entity(self)
             if as_dict: return dict(r.record)
             return r
 
-        r = self.execute_query(
-            'SELECT * FROM item WHERE id = %s', (item_id,))
+        q = MatchQuery('id', entity_id)
+        r = self.entities(query=q, entity=entity)
         try:
             if as_dict:
-                return dict(r[0])
+                return dict(r.next())
             else:
-                return Item(self,r[0])
-        except IndexError:
-            raise NoSuchItemError('id: '+str(item_id))
+                return Entity(self,r.next())
+        except StopIteration:
+            raise NoSuchEntityError('id: '+str(entity_id))
 
-    def upsert_item(self, item):
-        """Save given item to the database.
+    def upsert_entity(self, obj, entity='item'):
+        """Save given entity to the database.
         """
-        #TODO: Don't save when item is clean.
-        cols = COLUMN_TYPES[item.name].keys()
-        if item['id']:
-            query = 'UPDATE item SET {0} WHERE id = %s'
+        #TODO: Don't save when entity is clean.
+        cols = COLUMN_TYPES[obj.name].keys()
+        if obj['id']:
+            query = 'UPDATE {} SET {} WHERE id = %s'
             clauses = []
             subvals = []
             for f in cols:
-                if item.is_dirty(f):
+                if obj.is_dirty(f):
                     clauses.append(f+' = %s')
-                    subvals.append(item[f])
-            subvals.append(item['id'])
+                    subvals.append(obj[f])
+            subvals.append(obj['id'])
             query = query.format(' , '.join(clauses))
         else:
-            query = 'INSERT INTO item ({0}) VALUES ({1})'
+            query = 'INSERT INTO {} ({}) VALUES ({})'
             subvals = []
             scols = []
             for f in cols:
-                if item.is_dirty(f):
-                    subvals.append(item[f])
+                if obj.is_dirty(f):
+                    subvals.append(obj[f])
                     scols.append(f)
             fields = ','.join(scols)
             subholders = ','.join(['%s' for k in scols])
-            query = query.format(fields, subholders)
-        itemid = self.write_query(query, subvals)
-        if item['id']:
-            itemid = item['id']
-        newitem = self.get_item(itemid, as_dict=True)
-        item.fill(newitem)
+            query = query.format(obj, fields, subholders)
+        entityid = self.mutate(query, subvals)
+        if obj['id']:
+            entityid = obj['id']
+        newobj = self.get_entity(entityid, as_dict=True)
+        obj.fill(newobj)
 
-    def attach_labels(self, item_id, labels):
-        """Attach given list of labels to given item_id."""
-        if isinstance(item_id, Item):
-            item_id = item_id['id']
-        q = 'INSERT INTO item_label (label, entity_id) VALUES (%s, %s)'
+    def attach_labels(self, entity_id, labels, entity='item'):
+        """Attach given list of labels to given entity_id."""
+        if isinstance(entity_id, Item):
+            entity_id = entity_id['id']
+        q = '''INSERT INTO {}_label (label, entity_id) 
+             VALUES (%s, %s)'''.format(entity)
         for l in labels:
-            self.write_query(q, (l,item_id))
+            self.mutate(q, (l,entity_id))
 
-    def remove_labels(self, item_id, labels):
+    def remove_labels(self, entity_id, labels, entity='item'):
         """Remove given list of labels from given item(id)."""
-        if isinstance(item_id, Item):
-            item_id = item_id['id']
-        q = 'DELETE FROM item_label WHERE label = %s AND entity_id = %s'        
+        if isinstance(entity_id, Item):
+            entity_id = entity_id['id']
+        q = '''DELETE FROM {}_label 
+            WHERE label = %s AND entity_id = %s'''.format(entity)
         for l in labels:
-            self.execute_query(q, (l, item_id))
+            self.mutate(q, (l, entity_id))
 
     def cast_value(self, entity_type, column, value):
         """Attempt to cast given `value` to its proper type 
@@ -296,13 +363,13 @@ class Database(object):
         oidq = 'SELECT oid FROM pg_type WHERE typname = %s'
      
         for entity in entities:
-            data = self.execute_query(q, (entity,))
+            data = self.query(q, (entity,))
             tmap[entity] = {}
             for row in data:
                 strtype = row['data_type']
                 try:
                     strtype = typesubs[strtype]
                 except KeyError: pass
-                coloidtype = int(self.execute_query(oidq, (strtype,))[0][0])
+                coloidtype = int(self.query(oidq, (strtype,))[0][0])
                 tmap[entity][row['column_name']] = coloidtype
         return tmap
