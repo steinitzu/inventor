@@ -1,6 +1,7 @@
 import sys
 import decimal
 import os
+import logging
 
 from psycopg2.pool import ThreadedConnectionPool
 from psycopg2 import DatabaseError
@@ -8,6 +9,8 @@ import psycopg2
 import psycopg2.extras
 
 from .util import FixedDict
+
+log = logging.getLogger('inventor')
 
 #{'entity':{'column':psqltype}} (generated in Database on __init__)
 COLUMN_TYPES = {}
@@ -98,14 +101,16 @@ class MatchQuery(FieldQuery):
 class SubStringQuery(FieldQuery):
 
     def clause(self):
-        return '{} LIKE %{}%'.format(
-            self.field, DB_FORMAT_STR), (self.pattern,)
+        pattern = '%%{}%%'.format(self.pattern)
+        return '{} LIKE {}'.format(
+            self.field, DB_FORMAT_STR), (pattern,)
 
-class SubStringQueryCaseLess(FieldQuery):
+class ICaseSubstringQuery(FieldQuery):
 
     def clause(self):
-        return '{} ILIKE %{}%'.format(
-            self.field, DB_FORMAT_STR), (self.pattern,)
+        pattern = '%%{}%%'.format(self.pattern)
+        return '{} ILIKE {}'.format(
+            self.field, DB_FORMAT_STR), (pattern,)
 
 class LabelQuery(Query):
     def __init__(self, label, entity='item'):
@@ -126,12 +131,12 @@ class MultiQuery(Query):
         self.subqueries = [i for i in subqueries]
 
     def clause_with_joiner(self, joiner='or'):
-
         clauses = []
         subvals = []
         joiner = joiner.lower()
         for subq in self.subqueries:
             clause, subs = subq.clause()
+            log.debug('%s : %s', clause, subs)
             clauses.append('('+clause+')')
             subvals += subs
         clause = (' '+joiner+' ').join(clauses)
@@ -139,6 +144,19 @@ class MultiQuery(Query):
 
     def clause(self):
         return self.clause_with_joiner('or')
+
+class AnySubStringQuery(MultiQuery):
+    """Searches all fields of given `entity` for given `pattern`.
+    """
+    def __init__(self, pattern, entity='item', icase=False):
+        self.subqueries = []
+        if icase: cls = ICaseSubstringQuery
+        else: cls = SubStringQuery
+        for field in COLUMN_TYPES[entity].iterkeys():
+            log.debug('field: %s', field)
+            field+='::text'
+            q = cls(field, pattern)
+            self.subqueries.append(q)
 #
 
 class ResultIterator(object):
@@ -253,11 +271,13 @@ class Database(object):
                 'String queries and whatnot unimplemented')
         qs = queries+labelqueries
         q = MultiQuery(qs)
+        log.debug('queries: %s', qs)
         clause, subvals = q.clause()
         if not clause:
             query = normalq+' ORDER BY'+order
         else:
             query = normalq+' WHERE {} ORDER BY {}'.format(clause, order)
+        log.debug('Getting entities with sql:\n%s', query)
         return ResultIterator(self, self.query(query,subvals), entity=entity)        
 
 

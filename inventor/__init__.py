@@ -1,6 +1,15 @@
 from datetime import datetime, date
 from decimal import Decimal
 import json
+import logging
+
+log = logging.getLogger('inventor')
+formatter = logging.Formatter('%(levelname)s:%(module)s.%(funcName)s:%(message)s')
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+log.addHandler(handler)
+
+log.setLevel(logging.DEBUG)
 
 
 #monkey patch the json encoder
