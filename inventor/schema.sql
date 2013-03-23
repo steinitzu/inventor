@@ -41,17 +41,8 @@ CREATE TABLE IF NOT EXISTS read_only(
         column_name VARCHAR,
         UNIQUE(table_name, column_name));
 
-INSERT INTO read_only(table_name,column_name) 
-    VALUES ('universal','id') ;
-INSERT INTO read_only(table_name,column_name) 
-    VALUES ('universal','created_at');
-INSERT INTO read_only(table_name,column_name) 
-    VALUES ('universal','modified_at');
 
 -- TRIGGERS AND FUNCTIONS
-
-
-
 
 --do this on any crud operation on any entity 
 CREATE OR REPLACE FUNCTION update_activity_log()

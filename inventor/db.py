@@ -58,7 +58,7 @@ class Entity(object):
 
     def __setitem__(self, key, value):
         roc = READ_ONLY_COLUMNS
-        if key in roc['universal']or key in roc[self.name]:
+        if key in roc['universal'] or key in roc[self.name]:
             raise ColumnNotWriteable(key)
         value = self.database.cast_value(self.name,key,value)
         self.record[key] = value
@@ -71,6 +71,9 @@ class Entity(object):
 
 class Item(Entity):
     name = 'item'
+
+# TODO: Register classes on creation and add here (plugin stuff)
+ENTITY_CLASSES = {'item':Item}
 
 # Query class idea tolen from beets by Adrian Sampson #
 class Query(object):
@@ -129,7 +132,7 @@ class MultiQuery(Query):
         joiner = joiner.lower()
         for subq in self.subqueries:
             clause, subs = subq.clause()
-            clause.parts.append('('+clause+')')
+            clauses.append('('+clause+')')
             subvals += subs
         clause = (' '+joiner+' ').join(clauses)
         return clause, subvals
@@ -140,10 +143,11 @@ class MultiQuery(Query):
 
 class ResultIterator(object):
     entity_cls = {'item' : Item}
-    def __init__(self, rows, entity='item', offset=0):
+    def __init__(self, db, rows, entity='item', offset=0):
         self.rows = rows
         self.entity = self.entity_cls[entity]
         self.offset = offset
+        self.db = db
 
     def __iter__(self):
         return self
@@ -153,7 +157,7 @@ class ResultIterator(object):
             row = self.rows[self.offset]
         except:
             raise StopIteration
-        ent = self.entity(row)
+        ent = self.entity(self.db, row)
         self.offset+=1
         return ent    
 
@@ -169,16 +173,30 @@ class Database(object):
         args['database'] = database
         args['user'] = user
 
-        self.pool = ThreadedConnectionPool(4, 15, **args)
-            
+        self.pool = ThreadedPool(4, 15, **args)            
 
         #update the database schema (database must exist)
         schema = open(os.path.join(os.path.dirname(__file__), 
                                    'schema.sql')).read()
         self.query(schema)
+        self._init_data()
 
         COLUMN_TYPES.update(self.get_column_types(['item']))
         READ_ONLY_COLUMNS.update(self.get_read_only_columns())
+
+    def _init_data(self):
+        """Put some base data in the database, if not exists."""
+
+        q = """INSERT INTO read_only(table_name,column_name) 
+               VALUES ('universal','id') ;
+            INSERT INTO read_only(table_name,column_name) 
+               VALUES ('universal','created_at');
+            INSERT INTO read_only(table_name,column_name) 
+               VALUES ('universal','modified_at');"""
+        try:
+            self.query(q)
+        except psycopg2.IntegrityError:
+            pass #uniques already exists
 
     def query(self, query, subvals=()):
         conn = self.pool.getconn()
@@ -240,7 +258,7 @@ class Database(object):
             query = normalq+' ORDER BY'+order
         else:
             query = normalq+' WHERE {} ORDER BY {}'.format(clause, order)
-        return ResultIterator(self.query(query,subvals), entity=entity)        
+        return ResultIterator(self, self.query(query,subvals), entity=entity)        
 
 
     def get_entity(self, entity_id=None, as_dict=False, entity='item'):
@@ -248,21 +266,23 @@ class Database(object):
         If no id is provided, returns a new Entity.
         When `as_dict` is True, the entity is returned as a plain dict.
         """
+        strentity = entity
+        entity = ENTITY_CLASSES[entity]
         if not entity_id:
-            r = Entity(self)
+            r = entity(self)
             if as_dict: return dict(r.record)
             return r
 
         q = MatchQuery('id', entity_id)
-        r = self.entities(query=q, entity=entity)
+        r = self.entities(query=q, entity=strentity)
         try:
             if as_dict:
-                return dict(r.next())
+                return dict(r.rows[0])
             else:
-                return Entity(self,r.next())
-        except StopIteration:
+                return r.next()
+        except (IndexError, StopIteration):
             raise NoSuchEntityError('type: {} id: {} '.format(
-                    entity, entity_id))
+                    strentity, entity_id))
 
     def upsert_entity(self, obj, entity='item'):
         """Save given entity to the database.
@@ -391,6 +411,8 @@ class Database(object):
         """
         q = 'SELECT * FROM read_only'
         d = {}
+        for key in ENTITY_CLASSES:
+            d[key] = []
         for row in self.query(q):
             key = row['table_name']
             if not d.has_key(key):
