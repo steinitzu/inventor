@@ -63,8 +63,12 @@ class Entity(object):
         roc = READ_ONLY_COLUMNS
         if key in roc['universal'] or key in roc[self.name]:
             raise ColumnNotWriteable(key)
+        # may raise TypeError
         value = self.database.cast_value(self.name,key,value)
         self.record[key] = value
+
+    def keys(self):
+        return self.record.keys()
 
     def is_dirty(self, key=None):
         """Checks if given key is dirty.
@@ -136,7 +140,6 @@ class MultiQuery(Query):
         joiner = joiner.lower()
         for subq in self.subqueries:
             clause, subs = subq.clause()
-            log.debug('%s : %s', clause, subs)
             clauses.append('('+clause+')')
             subvals += subs
         clause = (' '+joiner+' ').join(clauses)
@@ -153,9 +156,15 @@ class AnySubStringQuery(MultiQuery):
         if icase: cls = ICaseSubstringQuery
         else: cls = SubStringQuery
         for field in COLUMN_TYPES[entity].iterkeys():
-            log.debug('field: %s', field)
             field+='::text'
             q = cls(field, pattern)
+            self.subqueries.append(q)
+
+class LabelsQuery(MultiQuery):
+    def __init__(self, labels, entity='item'):
+        self.subqueries = []
+        for label in labels:
+            q = LabelQuery(label, entity=entity)
             self.subqueries.append(q)
 #
 
@@ -257,19 +266,18 @@ class Database(object):
 
     def entities(self, labels=None, query=None, entity='item', order='id desc'):
         normalq = '''SELECT * FROM {} AS entity'''.format(entity)
-        labelqueries = []
         queries = []
 
         if labels:
-            labelqueries = [LabelQuery(l, entity) for l in labels]
+            queries.append(LabelsQuery(labels, entity=entity))
         if isinstance(query, Query):
             queries.append(query)
         elif isinstance(query, list) or isinstance(query, tuple):
             [queries.append(q) for q in query]
-        else:
+        elif not query is None:
             raise NotImplementedError(
                 'String queries and whatnot unimplemented')
-        qs = queries+labelqueries
+        qs = queries
         q = MultiQuery(qs)
         log.debug('queries: %s', qs)
         clause, subvals = q.clause()
@@ -343,7 +351,7 @@ class Database(object):
         q = '''INSERT INTO {}_label (label, entity_id) 
              VALUES (%s, %s)'''.format(entity)
         for l in labels:
-            self.mutate(q, (l,entity_id))
+            self.mutate(q, (l.lower(),entity_id))
 
     def remove_labels(self, entity_id, labels, entity='item'):
         """Remove given list of labels from given item(id)."""

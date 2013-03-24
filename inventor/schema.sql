@@ -33,6 +33,27 @@ CREATE TABLE IF NOT EXISTS item_label(
         UNIQUE(entity_id, label));
 
 
+CREATE OR REPLACE FUNCTION prevent_duplicates_item_label()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM item_label 
+    WHERE label=NEW.label AND entity_id=NEW.entity_id) THEN 
+        DELETE FROM item_label 
+            WHERE label = NEW.label AND entity_id = NEW.entity_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+DROP TRIGGER IF EXISTS prevent_duplicates_trigger ON item_label;
+CREATE TRIGGER prevent_duplicates_trigger
+BEFORE INSERT ON item_label
+FOR EACH ROW 
+EXECUTE PROCEDURE prevent_duplicates_item_label();
+
+
+
 -- table holding read only columns of entities
 -- can be either universal (table_name == NULL) or with a specified table name
 CREATE TABLE IF NOT EXISTS read_only(

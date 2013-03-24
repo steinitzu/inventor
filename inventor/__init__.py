@@ -9,12 +9,10 @@ handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 log.addHandler(handler)
 
-log.setLevel(logging.DEBUG)
+#log.setLevel(logging.DEBUG)
 
 
 #monkey patch the json encoder
-
-
 def newdefault(self, obj):
     if isinstance(obj, (datetime, date)):
         return obj.isoformat() #this is redundant
