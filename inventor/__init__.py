@@ -3,8 +3,15 @@ from decimal import Decimal
 import json
 import logging
 
+from . import confit
+
+config = confit.Configuration('inventor', __name__, False)
+
+# TODO: temporary
+config['database']['user'] = 'steini'
+
 log = logging.getLogger('inventor')
-formatter = logging.Formatter('%(levelname)s:%(module)s.%(funcName)s:%(message)s')
+formatter = logging.Formatter('%(levelname)s:%(module)s.%(funcName)s: %(message)s')
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 log.addHandler(handler)
@@ -29,3 +36,5 @@ def newdefault(self, obj):
 
 
 setattr(json.JSONEncoder, 'default', newdefault)
+
+

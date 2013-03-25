@@ -25,6 +25,7 @@ setup(name='inventor',
           'psycopg2',
           'flask',
           'flask-restful',
+          'pyaml'
       ]
       + (['ordereddict'] if sys.version_info < (2, 7, 0) else []),
       ),

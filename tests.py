@@ -2,8 +2,10 @@ import unittest as unittest
 from decimal import Decimal
 import random
 import string
+import json
 
-from inventor import db
+import inventor
+from inventor import db, web
 from inventor.db import ColumnNotWriteable
 
 RANDOMS = []
@@ -30,7 +32,7 @@ def _randdecimal(max=500):
 
 def _fill_entity(entity):
     for key in entity.keys():
-        vars = (_randstring(_randint(min=10,max=30)),
+        vars = (_randstring(),
                 _randint(),
                 _randdecimal())
         for v in vars:
@@ -56,7 +58,7 @@ def get_entities(dbb, count=10, e='item'):
 class DBTest(unittest.TestCase):
 
     def setUp(self):
-        self.db = db.Database(user='steini', database='inventortest')
+        self.db = db.Database(user='steini', dbname='inventortest')
         self.items = get_entities(self.db)
 
 
@@ -118,6 +120,72 @@ class DBTest(unittest.TestCase):
         q = db.LabelQuery('blubber', entity='item')
         items = self.db.entities(query=q, entity='item')
         assert(not items.rows)
+
+
+class RestTest(unittest.TestCase):
+
+    def setUp(self):
+        config = inventor.config
+        config['database']['user'] = 'steini'
+        config['database']['dbname'] = 'inventortest'
+
+        self.app = web.app.test_client()
+        self.db = web.get_db()        
+
+        self.items = get_entities(self.db)
+        for i in self.items:
+            self.db.upsert_entity(i)
+
+    def _decode(self, data):
+        return json.JSONDecoder().decode(data)
+
+    def tearDown(self):
+        self.db.query('DELETE FROM item WHERE 1 = 1;')
+        self.db.query('DELETE FROM item_label WHERE 1 = 1;')
+
+    def test_get_item_by_id(self):
+        rv = self.app.get('/item/{}'.format(self.items[0]['id']))
+        d = self._decode(rv.data)
+        od = self.items[0].record
+        assert((d['id'],d['name'],d['info']) == (od['id'],od['name'],od['info']))
+
+    def test_get_items(self):
+        rv = self.app.get('/items')
+        d = self._decode(rv.data)
+        assert(len(d) == len(self.items))        
+
+    def test_get_items_by_label(self):
+        self.db.attach_labels(self.items[0], ['shit', 'piss', 'cunt'])
+        rv = self.app.get('/items?labels=shit,piss,cunt')
+        d = self._decode(rv.data)
+        od = self.items[0].record
+        assert((d[0]['id'],d[0]['name'],d[0]['info']) == 
+               (od['id'],od['name'],od['info']))
+        assert(len(d) == 1)
+
+    def test_get_items_by_pattern(self):
+        """Get items by substring."""
+        item = self.items[0]
+        pattern = item['name']
+        rv = self.app.get('/items?pattern={}'.format(pattern))
+        d = self._decode(rv.data)
+        od = item.record
+        assert((d[0]['id'],d[0]['name'],d[0]['info']) == 
+               (od['id'],od['name'],od['info']))
+        assert(len(d) == 1)
+
+    def test_get_items_by_pattern_and_label(self):
+        item = self.items[0]
+        labels = ['shit', 'piss', 'cunt']
+        self.db.attach_labels(item, labels)
+        self.db.attach_labels(self.items[1], labels)
+        pattern = item['name']
+        rv = self.app.get('/items?pattern={}&labels={}'.format(
+                pattern, ','.join(labels)))
+        d = self._decode(rv.data)
+        od = item.record
+        assert((d[0]['id'],d[0]['name'],d[0]['info']) == (od['id'],od['name'],od['info']))
+        assert(len(d) == 1)
         
 
     

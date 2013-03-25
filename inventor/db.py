@@ -9,6 +9,7 @@ import psycopg2
 import psycopg2.extras
 
 from .util import FixedDict
+from . import config
 
 log = logging.getLogger('inventor')
 
@@ -148,6 +149,11 @@ class MultiQuery(Query):
     def clause(self):
         return self.clause_with_joiner('or')
 
+class AndQuery(MultiQuery):
+    """MultiQuery with an AND joiner."""
+    def clause(self):
+        return self.clause_with_joiner('and')
+
 class AnySubStringQuery(MultiQuery):
     """Searches all fields of given `entity` for given `pattern`.
     """
@@ -166,6 +172,9 @@ class LabelsQuery(MultiQuery):
         for label in labels:
             q = LabelQuery(label, entity=entity)
             self.subqueries.append(q)
+
+    def clause(self):
+        return self.clause_with_joiner('and')
 #
 
 class ResultIterator(object):
@@ -191,13 +200,13 @@ class ResultIterator(object):
 class Database(object):
 
     def __init__(self, 
-                 host='localhost', database='inventor', user='', password=''):
+                 host='localhost', dbname='inventor', user='', password=''):
         args = {}
         if host != 'localhost':
             args['host'] = host
         if password:
             args['password'] = password
-        args['database'] = database
+        args['database'] = dbname
         args['user'] = user
 
         self.pool = ThreadedPool(4, 15, **args)            
@@ -274,20 +283,22 @@ class Database(object):
             queries.append(query)
         elif isinstance(query, list) or isinstance(query, tuple):
             [queries.append(q) for q in query]
+        elif isinstance(query, basestring):
+            # Search all fields for query
+            queries.append(AnySubStringQuery(query, entity=entity))
         elif not query is None:
             raise NotImplementedError(
-                'String queries and whatnot unimplemented')
+                'Unsupported type for query: %s', type(query))
         qs = queries
-        q = MultiQuery(qs)
+        q = AndQuery(qs)
         log.debug('queries: %s', qs)
         clause, subvals = q.clause()
         if not clause:
-            query = normalq+' ORDER BY'+order
+            query = normalq+' ORDER BY '+order
         else:
             query = normalq+' WHERE {} ORDER BY {}'.format(clause, order)
         log.debug('Getting entities with sql:\n%s', query)
-        return ResultIterator(self, self.query(query,subvals), entity=entity)        
-
+        return ResultIterator(self, self.query(query,subvals), entity=entity)
 
     def get_entity(self, entity_id=None, as_dict=False, entity='item'):
         """Returns the Entity with given `entity_id`.
@@ -296,6 +307,7 @@ class Database(object):
         """
         strentity = entity
         entity = ENTITY_CLASSES[entity]
+        log.debug(entity_id)
         if not entity_id:
             r = entity(self)
             if as_dict: return dict(r.record)
