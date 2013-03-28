@@ -3,10 +3,13 @@ from decimal import Decimal
 import random
 import string
 import json
+import logging
 
 import inventor
 from inventor import db, web
 from inventor.db import ColumnNotWriteable
+
+log = logging.getLogger('inventor')
 
 RANDOMS = []
 
@@ -186,8 +189,12 @@ class RestTest(unittest.TestCase):
         od = item.record
         assert((d[0]['id'],d[0]['name'],d[0]['info']) == (od['id'],od['name'],od['info']))
         assert(len(d) == 1)
-        
 
+    def test_put_new_item(self):
+        item = get_entities(self.db, 1)[0]
+        log.debug(item.record)
+        data = self.app.put('/item')
+        log.debug(data)
     
 if __name__ == '__main__':
     unittest.main()

@@ -16,7 +16,7 @@ handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 log.addHandler(handler)
 
-#log.setLevel(logging.DEBUG)
+log.setLevel(logging.DEBUG)
 
 
 #monkey patch the json encoder
