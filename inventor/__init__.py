@@ -7,9 +7,6 @@ from . import confit
 
 config = confit.Configuration('inventor', __name__, False)
 
-# TODO: temporary
-config['database']['user'] = 'steini'
-
 log = logging.getLogger('inventor')
 formatter = logging.Formatter('%(levelname)s:%(module)s.%(funcName)s: %(message)s')
 handler = logging.StreamHandler()
@@ -17,7 +14,6 @@ handler.setFormatter(formatter)
 log.addHandler(handler)
 
 log.setLevel(logging.DEBUG)
-
 
 #monkey patch the json encoder
 def newdefault(self, obj):
@@ -34,7 +30,4 @@ def newdefault(self, obj):
         'Object of type %s with value %s is not JSON serializable' %
         (type(obj), obj))
 
-
 setattr(json.JSONEncoder, 'default', newdefault)
-
-

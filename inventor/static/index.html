@@ -5,8 +5,14 @@
     <title>Cool website</title>
     <link rel="stylesheet" href="static/lib/bootstrap/css/bootstrap.css"></link>
     <script src="static/lib/angularjs/angular.js"></script>
+    <script src="static/js/controllers.js"></script>
   </head>
   <body>
-    <p>some stuff {{'yet' + '!'}}</p>
+    <div ng-controller="ItemListCtrl">
+      <li ng-repeat="item in items">
+        {{item.name}}
+      </li>
+    </div>
+   <!-- <p>where da fuck are my items {{items}}</p>-->
   </body>
 </html>

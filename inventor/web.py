@@ -15,7 +15,6 @@ log = logging.getLogger('inventor')
 
 app = Flask(__name__, template_folder='static')
 api = restful.Api(app)
-
 _db = None
 
 def get_db():
@@ -72,13 +71,12 @@ class Index(restful.Resource):
 
     def get(self):
         p = os.path.join(app.static_folder, 'index.html')
-        return render_template('index.html')
+        return self._read(p)
 
 api.add_resource(Item, '/item')
 api.add_resource(Item, '/item/<int:entity_id>')
 api.add_resource(Items, '/items')
 api.add_resource(Index, '/')
-
 
 def main():
     config.read()
@@ -86,4 +84,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-        

@@ -1,3 +1,0 @@
-
-
-Item = Backbone.Model.extend({});
