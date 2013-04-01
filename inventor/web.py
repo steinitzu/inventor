@@ -7,6 +7,7 @@ from flask import Flask, request, g
 from flask.ext import restful
 from flask import render_template
 from flask import make_response
+from werkzeug import SharedDataMiddleware
 
 from . import config
 from . import db
@@ -30,14 +31,16 @@ def get_db():
 def before_request():
     g.db = get_db()    
 
-@api.representation('text/html')
-def output_html(data, code, headers=None):
-    resp = make_response(data, code)
-    resp.headers.extend(headers or {})
-    return resp
+#@api.representation('text/html')
+#def output_html(data, code, headers=None):
+#    resp = make_response(data, code)
+#    resp.headers.extend(headers or {})
+#    return resp
 
 class Item(restful.Resource):
     def get(self, entity_id=None):
+        log.debug('Getting item with id: %s', entity_id)
+        log.debug('MIMETYPE: %s', request.mimetype)
         try:
             e = g.db.get_entity(entity_id=entity_id, entity='item')
         except db.NoSuchEntityError as e:
@@ -76,10 +79,16 @@ class Index(restful.Resource):
 api.add_resource(Item, '/item')
 api.add_resource(Item, '/item/<int:entity_id>')
 api.add_resource(Items, '/items')
-api.add_resource(Index, '/')
+#api.add_resource(Index, '/')
+
+app.wsgi_app = SharedDataMiddleware(app.wsgi_app, {
+        '/': os.path.join(os.path.dirname(__file__), 'static'),
+        '/static': os.path.join(os.path.dirname(__file__), 'static'),
+        })
 
 def main():
     config.read()
+    app.debug = True
     app.run()
 
 if __name__ == '__main__':
