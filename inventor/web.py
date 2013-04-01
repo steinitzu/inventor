@@ -5,7 +5,6 @@ import os
 
 from flask import Flask, request, g
 from flask.ext import restful
-from flask import render_template
 from flask import make_response
 from werkzeug import SharedDataMiddleware
 
@@ -14,7 +13,12 @@ from . import db
 
 log = logging.getLogger('inventor')
 
+UPLOAD_FOLDER = '/path/to/the/uploads'
+ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+
 app = Flask(__name__, template_folder='static')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config[''] = UPLOAD_FOLDER
 api = restful.Api(app)
 _db = None
 
