@@ -31,12 +31,6 @@ def get_db():
 def before_request():
     g.db = get_db()    
 
-#@api.representation('text/html')
-#def output_html(data, code, headers=None):
-#    resp = make_response(data, code)
-#    resp.headers.extend(headers or {})
-#    return resp
-
 class Item(restful.Resource):
     def get(self, entity_id=None):
         log.debug('Getting item with id: %s', entity_id)
@@ -74,17 +68,15 @@ class Index(restful.Resource):
 
     def get(self):
         p = os.path.join(app.static_folder, 'index.html')
-        return self._read(p)
+        data = self._read(p)
+        resp = make_response(data, 200)
+        resp.mimetype = 'text/html'
+        return resp
 
 api.add_resource(Item, '/item')
 api.add_resource(Item, '/item/<int:entity_id>')
 api.add_resource(Items, '/items')
-#api.add_resource(Index, '/')
-
-app.wsgi_app = SharedDataMiddleware(app.wsgi_app, {
-        '/': os.path.join(os.path.dirname(__file__), 'static'),
-        '/static': os.path.join(os.path.dirname(__file__), 'static'),
-        })
+api.add_resource(Index, '/')
 
 def main():
     config.read()
