@@ -5,7 +5,7 @@ angular.module('inventor', []).
                 templateUrl: 'static/item-list.html', controller: ItemListCtrl
             }).
             when('/item/:itemId', {
-                templateUrl: 'static/item-detail.html', controller: ItemDetailCtrl
+                templateUrl: 'static/item-form.html', controller: ItemDetailCtrl
             }).
             otherwise({
                 redirectTo: '/items'

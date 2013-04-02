@@ -31,3 +31,10 @@ def newdefault(self, obj):
         (type(obj), obj))
 
 setattr(json.JSONEncoder, 'default', newdefault)
+# Force decoder to decode floats to decimal
+def initd(self, *args, **kwargs):
+    kwargs['parse_float'] = Decimal
+    self.baseinit(*args, **kwargs)
+setattr(json.JSONDecoder, 'baseinit', json.JSONDecoder.__init__)
+setattr(json.JSONDecoder, '__init__', initd)
+

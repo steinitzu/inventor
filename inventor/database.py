@@ -48,14 +48,25 @@ class Entity(object):
     database table. Each instance is a single row.
     """
     name = 'entity'
+    defaults = {}
 
     def __init__(self, database, values=None):
         self.database = database
         self.record = None
         self.fill(values)
+        self.set_defaults()
 
     def fill(self, values=None):
         self.record = FixedDict(COLUMN_TYPES[self.name].keys(), values)
+
+    def update(self, values, soft=True):
+        """soft ignores ColumnNotWriteable errors.
+        """
+        for k,v in values.iteritems():
+            try:
+                self[k] = v
+            except ColumnNotWriteable:
+                pass
 
     def __getitem__(self, key):
         return self.record[key]
@@ -77,8 +88,18 @@ class Entity(object):
         """
         return self.record.is_dirty(key=key)
 
+    def set_defaults(self, force=False):
+        """Set default values for empty fields.
+        `force==True` overrides non-empty fields.
+        """
+        for k,v in self.defaults.iteritems():
+            if not self[k] or force:
+                self[k] = v        
+
 class Item(Entity):
     name = 'item'
+    defaults = {'quantity':1,
+                'unit':'pcs'}
 
 # TODO: Register classes on creation and add here (plugin stuff)
 ENTITY_CLASSES = {'item':Item}

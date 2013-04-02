@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS item(
         part_numbers TEXT,
         location VARCHAR,
         sale_price NUMERIC DEFAULT 0,
-        quantity NUMERIC,
+        quantity NUMERIC DEFAULT 1,
         unit VARCHAR DEFAULT 'pcs',
         condition TEXT,
         info TEXT,

@@ -6,8 +6,8 @@ import json
 import logging
 
 import inventor
-from inventor import db, web
-from inventor.db import ColumnNotWriteable
+from inventor import database, web
+from inventor.database import ColumnNotWriteable
 
 log = logging.getLogger('inventor')
 
@@ -50,23 +50,27 @@ def _fill_entity(entity):
 
 def get_entities(dbb, count=10, e='item'):
     """Get some entities with random data."""
-    cls = db.ENTITY_CLASSES[e]
+    cls =database.ENTITY_CLASSES[e]
 
-    es = [cls(dbb) for i in range(10)]
+    es = [cls(dbb) for i in range(count)]
     for entity in es:
         _fill_entity(entity)
     return es
 
+def fill_db(dbb, count=10, e='item'):
+    es = get_entities(dbb, count, e)
+    for e in es:
+        dbb.upsert_entity(e)
 
 class DBTest(unittest.TestCase):
 
     def setUp(self):
-        self.db = db.Database(user='steini', dbname='inventortest')
+        self.db =database.Database(user='steini', dbname='inventortest')
         self.items = get_entities(self.db)
 
 
         # TODO: drop self.item
-        item = db.Item(self.db)
+        item =database.Item(self.db)
         item['name'] = 'testiboy'
         self.db.upsert_entity(item)
         self.item = item
@@ -120,7 +124,7 @@ class DBTest(unittest.TestCase):
     def test_remove_label(self):
         self.db.attach_labels(self.item['id'], ['blubber'], entity='item')
         self.db.remove_labels(self.item['id'], ['blubber'], entity='item')
-        q = db.LabelQuery('blubber', entity='item')
+        q =database.LabelQuery('blubber', entity='item')
         items = self.db.entities(query=q, entity='item')
         assert(not items.rows)
 

@@ -9,7 +9,7 @@ from flask import make_response
 from werkzeug import SharedDataMiddleware
 
 from . import config
-from . import db
+from . import database
 
 log = logging.getLogger('inventor')
 
@@ -29,7 +29,7 @@ def get_db():
     args = {}
     for key in v.keys():
         args[key] = v[key].get()
-    return db.Database(**args)
+    return database.Database(**args)
 
 @app.before_request
 def before_request():
@@ -41,15 +41,19 @@ class Item(restful.Resource):
         log.debug('MIMETYPE: %s', request.mimetype)
         try:
             e = g.db.get_entity(entity_id=entity_id, entity='item')
-        except db.NoSuchEntityError as e:
+        except database.NoSuchEntityError as e:
             restful.abort(404, message='No item with id: '+str(entity_id))
         else:
             return e.record
 
-    def put(self):
-        data = request.form['data']
+    def post(self):
+        data = request.json
         log.debug(data)
-        return data, 201
+        item = g.db.get_entity(data['id'], entity='item')
+        status = 200 if item['id'] else 201
+        item.update(data)
+        g.db.upsert_entity(item)
+        return item['id'], status
 
 class Items(restful.Resource):
     def get(self):
@@ -67,7 +71,7 @@ class Items(restful.Resource):
 
 
 class Index(restful.Resource):
-    def _read(self, path):                
+    def _read(self, path):
         return open(path).read()
 
     def get(self):
@@ -85,7 +89,7 @@ api.add_resource(Index, '/')
 def main():
     config.read()
     app.debug = True
-    app.run()
+    app.run(host='0.0.0.0')
 
 if __name__ == '__main__':
     main()

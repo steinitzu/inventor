@@ -1,0 +1,44 @@
+<div class="container-fluid">  
+  <div class="row-fluid">
+
+    <h3>{{'['+item.id+']'+' '+item.name}}</h3>
+    <form name="itemForm" ng-submit="submit()" ng-controller="ItemDetailCtrl">
+      <fieldset>
+        <div class="controls">
+          <label>Name</label>
+          <input class="span5" type="text" placeholder="Item name.." 
+                 ng-model="item.name" name="name" required />
+          <label>Location</label>
+          <input class="span5" type="text" placeholder="Item location.." 
+                 ng-model="item.location" name="location" required />
+        </div>
+        <div class="controls controls.row">
+          <label>Quantity</label>
+          <input type="number" class="span2"
+                 ng-model="item.quantity" name="quantity" required />
+          <input type="text" placeholder="unit.." class="span3"
+                 ng-model="item.unit" name="unit" required/>
+        </div>
+        <div class="controls">
+          <label>Condition</label>
+          <input class="span5" type="text" placeholder="Item condition.." 
+                 ng-model="item.condition" name="condition"/>
+          
+          <label>Part_Numbers</label>
+          <textarea class="span5" placeholder="Item part numbers.." rows="6"
+                    ng-model="item.part_numbers" name="part_numbers">
+          </textarea>
+          <label>Info</label>
+          <textarea class="span5" placeholder="Item part numbers.." rows="6"
+                    ng-model="item.info" name="info">
+          </textarea>
+        </div>
+        <span class="error" ng-show="itemForm.input.$error.required">Required!
+        </span>
+        <input type="submit" id="suibmit" value="Submit" />
+      </fieldset>
+
+    </form>
+  </div>
+</div>
+     
