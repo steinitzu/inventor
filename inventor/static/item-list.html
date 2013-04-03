@@ -9,10 +9,39 @@
       </select>
     </div>
     <div class="span10">
-      <table class="table items">
-        <tr ng-repeat="item in items | filter:query | orderBy:orderProp" class="thumbnail">
-          <td>lol</td>
-        </tr>
+      <table class="table table-striped rowlink">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Quantity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-repeat="item in items | filter:query | orderBy:orderProp">
+            <td>
+              <a href="#/item/{{item.id}}">
+                {{item.id}}
+              </a>
+            </td>
+            <td>
+              <a href="#/item/{{item.id}}">
+                {{item.name}}
+              </a>
+            </td>
+            <td>
+              <a href="#/item/{{item.id}}">
+                {{item.location}}
+              </a>
+            </td>
+            <td>
+              <a href="#/item/{{item.id}}">
+                {{item.quantity}}
+              </a>
+            </td>
+          </tr>
+        </tbody>
       </table>
       <!--
       <ul class="items">

@@ -1,8 +1,7 @@
 <div class="container-fluid">  
   <div class="row-fluid">
-
-    <h3>{{'['+item.id+']'+' '+item.name}}</h3>
     <form name="itemForm" ng-submit="submit()" ng-controller="ItemDetailCtrl">
+      <h3>{{item.id}} - {{item.name}}</h3>
       <fieldset>
         <div class="controls">
           <label>Name</label>
