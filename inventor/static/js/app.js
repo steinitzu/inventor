@@ -1,4 +1,4 @@
-angular.module('inventor', []).
+angular.module('inventor', ['ngResource']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/items', {

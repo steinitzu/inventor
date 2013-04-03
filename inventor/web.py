@@ -37,6 +37,9 @@ def before_request():
 
 class Item(restful.Resource):
     def get(self, entity_id=None):
+        args = request.args
+        log.debug(args)
+        entity_id = entity_id or args.get('entity_id')
         log.debug('Getting item with id: %s', entity_id)
         log.debug('MIMETYPE: %s', request.mimetype)
         try:

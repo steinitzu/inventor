@@ -1,25 +1,27 @@
 <div class="container-fluid">
   <div class="row-fluid">
     <div class="span2">
-      <!--Sidebar content-->
-      
-      Search: <input ng-model="query">
-      Sort by:
+      <label>Search:</label>
+      <input ng-model="query" />
+      <label>Sort by:</label>
       <select ng-model="orderProp">
         <option value="name">Alphabetical</option>
-      </select>      
+      </select>
     </div>
     <div class="span10">
-      <!--Body content-->
-      
+      <table class="table items">
+        <tr ng-repeat="item in items | filter:query | orderBy:orderProp" class="thumbnail">
+          <td>lol</td>
+        </tr>
+      </table>
+      <!--
       <ul class="items">
         <li ng-repeat="item in items | filter:query | orderBy:orderProp" class="thumbnail">
-          <a href="#/item/{{item.id}}" class="thumb"><img ng-src="{{item.picture_path}}"></a>
-          <a href="#/item/{{item.id}}">{{item.name}}</a>
-          <p>{{item.info}}</p>
+-          <a href="#/item/{{item.id}}" class="thumb"><img ng-src="{{item.picture_path}}"></a>
+-          <a href="#/item/{{item.id}}">{{item.name}}</a>
+-          <p>{{item.info}}</p>          
         </li>
-      </ul>
-      
+        -->
     </div>
   </div>
 </div>
