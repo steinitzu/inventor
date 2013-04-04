@@ -80,8 +80,9 @@ class Labels(restful.Resource):
         args = request.args
         entity_id = args.get('entity_id')
         entity = args.get('entity') or 'item'
+        substring = args.get('substring')
         log.debug('Getting labels for %s id %s', entity, entity_id)
-        return g.db.labels(entity_id, entity)
+        return g.db.labels(entity_id, substring, entity)
 
     def post(self):
         """JSON string list should be provided as 

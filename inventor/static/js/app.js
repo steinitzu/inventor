@@ -1,4 +1,4 @@
-angular.module('inventor', ['ngResource']).
+var inventor = angular.module('inventor', ['$strap.directives']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/items', {
@@ -11,3 +11,5 @@ angular.module('inventor', ['ngResource']).
                 redirectTo: '/items'
             });
     }]);
+
+

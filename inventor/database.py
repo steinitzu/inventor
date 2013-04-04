@@ -345,18 +345,24 @@ class Database(object):
             raise NoSuchEntityError('type: {} id: {} '.format(
                     strentity, entity_id))
 
-    def labels(self, entity_id=None, entity='item'):
+    def labels(self, entity_id=None, substring=None, entity='item'):
         """Get a string list of labels attached to 
-        given `entity_id` of type `entity`.
+        given `entity_id` of type `entity`, matching substring if any.
         If no id is provided, returns all labels for `entity`.
         """
         # TODO: prevent injection
         q = "SELECT DISTINCT label FROM {}_label".format(entity) 
 
-        subvals = ()
+        subvals = []
+        clauses = []
         if entity_id:
-            q += " WHERE entity_id = %s"
-            subvals = (entity_id,)
+            clauses.append('entity_id = %s')
+            subvals.append(entity_id)
+        if substring:
+            clauses.append('label LIKE %s')
+            subvals.append('%%{}%%'.format(substring.lower()))
+        if clauses:
+            q += " WHERE "+" AND ".join(clauses)
         rows = self.query(q, subvals)
         return [row['label'] for row in rows]
         

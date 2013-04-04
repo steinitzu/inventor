@@ -4,8 +4,10 @@ function ItemListCtrl($scope, $http) {
          });
 };
 
+
+
 function ItemDetailCtrl($scope, $http, $routeParams, $filter, $location) {
-    $scope.url = 'item'
+    $scope.url = 'item';
     $scope.entityId = $routeParams.itemId;
     $scope.fetch = function() {
         $http({
@@ -29,4 +31,33 @@ function ItemDetailCtrl($scope, $http, $routeParams, $filter, $location) {
                 });
     };
     $scope.fetch();
+};
+
+
+function LabelsCtrl($scope, $http) {
+    $scope.url = 'labels';
+    $scope.entityId = null;
+    $scope.fetch = function() {
+
+        $http({
+            method: 'GET',
+            url: 'labels',
+            params:{'entity_id':$scope.entityId,'entity':'item'}}).success(
+                function(data) {
+                    $scope.labels = data;
+                });
+    };
+
+    $scope.typeaheadFn = function(substring, callback) {
+        console.log('fetching');
+        $http({
+            method: 'GET',
+            url: $scope.url,
+            params: {
+                'entity': 'item',
+                'substring': substring}
+            }).success(function (stations) {
+                callback(stations);
+            });
+    };
 };
