@@ -72,6 +72,26 @@ class Items(restful.Resource):
             entity='item')
         return [i.record for i in items]
 
+class Labels(restful.Resource):
+    def get(self):
+        """Get all labels matching entity and entity_id.
+        If no id is provided, all saved labels for that entity are returned.
+        """
+        args = request.args
+        entity_id = args.get('entity_id')
+        entity = args.get('entity') or 'item'
+        log.debug('Getting labels for %s id %s', entity, entity_id)
+        return g.db.labels(entity_id, entity)
+
+    def post(self):
+        """JSON string list should be provided as 
+        request data and will be attached to given entity_id.
+        """
+        args = request.args
+        entity_id = args.get('entity_id')
+        entity = args.get('entity') or 'item'
+        labels = request.json
+        g.db.attach_labels(entity_id, labels, entity)
 
 class Index(restful.Resource):
     def _read(self, path):
@@ -88,6 +108,7 @@ api.add_resource(Item, '/item')
 api.add_resource(Item, '/item/<int:entity_id>')
 api.add_resource(Items, '/items')
 api.add_resource(Index, '/')
+api.add_resource(Labels, '/labels')
 
 def main():
     config.read()

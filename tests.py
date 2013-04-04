@@ -63,6 +63,22 @@ def fill_db(dbb, count=10, e='item'):
     for e in es:
         dbb.upsert_entity(e)
 
+def _make_labels(db, items, count='20'):
+    """Attach random labels to given list of items.
+    Returns a dict {item_id : [labels...]}
+    """
+    labels = [_randstring() for i in range(count)]
+    
+    id_label = {}
+    for item in items:
+        id_label[item['id']] = []
+    for label in labels:
+        item = items[_randint(0,len(items)-1)]
+        db.attach_labels(item, [label], entity='item')
+        id_label[item['id']].append(label.lower())
+    return id_label
+
+
 class DBTest(unittest.TestCase):
 
     def setUp(self):
@@ -80,21 +96,6 @@ class DBTest(unittest.TestCase):
         self.db.query('DELETE FROM item WHERE 1 = 1;')
         self.db.query('DELETE FROM item_label WHERE 1 = 1;')
 
-    def _make_labels(self, items):
-        """Attach random labels to given list of items.
-        Returns a dict {item_id : [labels...]}
-        """
-        labels = [_randstring() for i in range(20)]
-        
-        id_label = {}
-        for item in self.items:
-            id_label[item['id']] = []
-
-        for label in labels:
-            item = self.items[_randint(0,len(self.items)-1)]
-            self.db.attach_labels(item, [label], entity='item')
-            id_label[item['id']].append(label.lower())
-        return id_label
 
     def test_insert_item(self):
         for item in self.items:
@@ -121,7 +122,7 @@ class DBTest(unittest.TestCase):
         for item in self.items:
             self.db.upsert_entity(item)
         
-        id_label = self._make_labels(self.items)
+        id_label = _make_labels(self.db, self.items)
 
         for key,value in id_label.iteritems():
             if not value: continue
@@ -141,7 +142,7 @@ class DBTest(unittest.TestCase):
         db for each item."""
         for item in self.items:
             self.db.upsert_entity(item)
-        idlabel = self._make_labels(self.items)
+        idlabel = _make_labels(self.db, self.items)
         for i,labels in idlabel.iteritems():
             dblabels = self.db.labels(i, 'item')
             assert(sorted(dblabels) == sorted(labels))
