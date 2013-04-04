@@ -345,6 +345,22 @@ class Database(object):
             raise NoSuchEntityError('type: {} id: {} '.format(
                     strentity, entity_id))
 
+    def labels(self, entity_id=None, entity='item'):
+        """Get a string list of labels attached to 
+        given `entity_id` of type `entity`.
+        If no id is provided, returns all labels for `entity`.
+        """
+        # TODO: prevent injection
+        q = "SELECT DISTINCT label FROM {}_label".format(entity) 
+
+        subvals = ()
+        if entity_id:
+            q += " WHERE entity_id = %s"
+            subvals = (entity_id,)
+        rows = self.query(q, subvals)
+        return [row['label'] for row in rows]
+        
+
     def upsert_entity(self, obj, entity='item'):
         """Save given entity to the database.
         """

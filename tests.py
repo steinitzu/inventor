@@ -10,6 +10,7 @@ from inventor import database, web
 from inventor.database import ColumnNotWriteable
 
 log = logging.getLogger('inventor')
+log.setLevel(logging.CRITICAL)
 
 RANDOMS = []
 
@@ -79,6 +80,22 @@ class DBTest(unittest.TestCase):
         self.db.query('DELETE FROM item WHERE 1 = 1;')
         self.db.query('DELETE FROM item_label WHERE 1 = 1;')
 
+    def _make_labels(self, items):
+        """Attach random labels to given list of items.
+        Returns a dict {item_id : [labels...]}
+        """
+        labels = [_randstring() for i in range(20)]
+        
+        id_label = {}
+        for item in self.items:
+            id_label[item['id']] = []
+
+        for label in labels:
+            item = self.items[_randint(0,len(self.items)-1)]
+            self.db.attach_labels(item, [label], entity='item')
+            id_label[item['id']].append(label.lower())
+        return id_label
+
     def test_insert_item(self):
         for item in self.items:
             self.db.upsert_entity(item)
@@ -103,23 +120,14 @@ class DBTest(unittest.TestCase):
         """Test setting and searching by labels."""
         for item in self.items:
             self.db.upsert_entity(item)
-        labels = [_randstring() for i in range(20)]
         
-        id_label = {}
-        for item in self.items:
-            id_label[item['id']] = []
-
-        for label in labels:
-            item = self.items[_randint(0,len(self.items)-1)]
-            self.db.attach_labels(item, [label], entity='item')
-            id_label[item['id']].append(label.lower())
+        id_label = self._make_labels(self.items)
 
         for key,value in id_label.iteritems():
             if not value: continue
             items = self.db.entities(labels=value, entity='item')
             assert(len(items.rows) == 1)
             assert(items.next()['id'] == key)
-
 
     def test_remove_label(self):
         self.db.attach_labels(self.item['id'], ['blubber'], entity='item')
@@ -128,6 +136,15 @@ class DBTest(unittest.TestCase):
         items = self.db.entities(query=q, entity='item')
         assert(not items.rows)
 
+    def test_get_labels(self):
+        """Attaches random labels and tries retrieving them from 
+        db for each item."""
+        for item in self.items:
+            self.db.upsert_entity(item)
+        idlabel = self._make_labels(self.items)
+        for i,labels in idlabel.iteritems():
+            dblabels = self.db.labels(i, 'item')
+            assert(sorted(dblabels) == sorted(labels))
 
 class RestTest(unittest.TestCase):
 
