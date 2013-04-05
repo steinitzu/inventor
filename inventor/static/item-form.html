@@ -34,14 +34,15 @@
         </div>
         <span class="error" ng-show="itemForm.input.$error.required">Required!
         </span>
-        <input type="submit" id="suibmit" value="Submit" />
+        <input type="submit" id="submit" value="Submit" />
       </fieldset>
 
     </form>
-    <form name="labelForm" ng-controller="LabelsCtrl">
+    <form name="labelForm" ng-submit="submit()" ng-controller="LabelsCtrl">
       <fieldset>
         <div class="controls">
           <input type="text" ng-model="typeaheadValue" bs-typeahead="typeaheadFn" />
+          <input type="submit" id="submit" value="Attach" />
         </div>
       </fieldset>
     </form>
