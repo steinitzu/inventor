@@ -1,6 +1,6 @@
 <div class="container-fluid">  
   <div class="row-fluid">
-    <form name="itemForm" ng-submit="submit()" ng-controller="ItemDetailCtrl">
+    <form name="itemForm" ng-submit="submit()" ng-controller="ItemCtrl">
       <h3>{{item.id}} - {{item.name}}</h3>
       <fieldset>
         <div class="controls">
@@ -41,8 +41,16 @@
     <form name="labelForm" ng-submit="submit()" ng-controller="LabelsCtrl">
       <fieldset>
         <div class="controls">
-          <input type="text" ng-model="typeaheadValue" bs-typeahead="typeaheadFn" />
+          <input name="typeahead" type="text" ng-model="typeaheadValue" bs-typeahead="typeaheadFn" 
+                 autocomplete="off" />
           <input type="submit" id="submit" value="Attach" />
+        </div>
+      </fieldset>
+    </form>
+    <form name="itemlabelForm" ng-controller="ItemLabelsCtrl">
+      <fieldset>
+        <div class="controls">
+          <textarea rows="6" ng-model="labels" name="labels">
         </div>
       </fieldset>
     </form>

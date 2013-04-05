@@ -5,13 +5,11 @@ var inventor = angular.module('inventor', ['$strap.directives']).
                 templateUrl: 'static/item-list.html', controller: ItemListCtrl
             }).
             when('/item/:itemId', {
-                templateUrl: 'static/item-form.html', controller: ItemDetailCtrl
+                templateUrl: 'static/item-form.html', controller: ItemCtrl
             }).
             otherwise({
                 redirectTo: '/items'
             });
     }]);
-
-
 
 

@@ -380,6 +380,9 @@ class Database(object):
                 if obj.is_dirty(f):
                     clauses.append(f+' = %s')
                     subvals.append(obj[f])
+            if not clauses:
+                # clean, nothing to do
+                return
             subvals.append(obj['id'])
             query = query.format(entity, ' , '.join(clauses))
         else:

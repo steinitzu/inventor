@@ -92,6 +92,10 @@ class Labels(restful.Resource):
         entity_id = args.get('entity_id')
         entity = args.get('entity') or 'item'
         labels = request.json
+        log.debug('setting labels [%s] for %s with id: %s', 
+                  labels,
+                  entity, 
+                  entity_id);
         g.db.attach_labels(entity_id, labels, entity)
 
 class Index(restful.Resource):
