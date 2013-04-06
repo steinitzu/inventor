@@ -127,14 +127,14 @@ class MatchQuery(FieldQuery):
 class SubStringQuery(FieldQuery):
 
     def clause(self):
-        pattern = '%%{}%%'.format(self.pattern)
+        pattern = u'%%{}%%'.format(self.pattern)
         return '{} LIKE {}'.format(
             self.field, DB_FORMAT_STR), (pattern,)
 
 class ICaseSubstringQuery(FieldQuery):
 
     def clause(self):
-        pattern = '%%{}%%'.format(self.pattern)
+        pattern = u'%%{}%%'.format(self.pattern)
         return '{} ILIKE {}'.format(
             self.field, DB_FORMAT_STR), (pattern,)
 
@@ -306,7 +306,7 @@ class Database(object):
             [queries.append(q) for q in query]
         elif isinstance(query, basestring):
             # Search all fields for query
-            queries.append(AnySubStringQuery(query, entity=entity))
+            queries.append(AnySubStringQuery(query, entity=entity, icase=True))
         elif not query is None:
             raise NotImplementedError(
                 'Unsupported type for query: %s', type(query))
@@ -360,7 +360,7 @@ class Database(object):
             subvals.append(entity_id)
         if substring:
             clauses.append('label LIKE %s')
-            subvals.append('%%{}%%'.format(substring.lower()))
+            subvals.append(u'%%{}%%'.format(substring.lower()))
         if clauses:
             q += " WHERE "+" AND ".join(clauses)
         q += ' ORDER BY label'

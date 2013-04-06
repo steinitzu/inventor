@@ -2,7 +2,7 @@
   <div class="row-fluid">
     <div class="span2">
       <label>Search:</label>
-      <input ng-model="query" />
+      <input ng-model="query" ng-change="filter()" />
       <label>Sort by:</label>
       <select ng-model="orderProp">
         <option value="name">Alphabetical</option>
@@ -43,7 +43,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr ng-repeat="item in items | filter:query | orderBy:orderProp">
+          <tr ng-repeat="item in items | orderBy:orderProp">
             <td>
               <a href="#/item/{{item.id}}">
                 {{item.id}}

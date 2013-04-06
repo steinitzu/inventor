@@ -53,7 +53,7 @@ inventor.factory('itemService', function($rootScope) {
     
     sharedService.setFilterQuery = function(query) {
         this.filterQuery = query;
-        this.broadCast('filterQueryChanged');
+        this.broadcast('filterQueryChanged');
     };
     
     sharedService.broadcast = function (name) {
@@ -65,6 +65,9 @@ inventor.factory('itemService', function($rootScope) {
 });
 
 function ItemListCtrl($scope, $http, itemService) {
+    $scope.query = itemService.filterQuery;
+    $scope.labels = itemService.filterLabels;
+
     $scope.fetch = function(query, labels) {
         $http({
             method: 'GET',
@@ -77,14 +80,25 @@ function ItemListCtrl($scope, $http, itemService) {
             });
     };
 
-    $scope.$on('filterLabelsChanged', function() {
+    var refresh = function() {
         $scope.fetch(itemService.filterQuery, itemService.filterLabels);
+    };
+
+    $scope.$on('filterLabelsChanged', function() {
+        refresh();
     });
     $scope.$on('filterQueryChanged', function() {
-        $scope.fetch(itemService.filterQuery, itemService.filterLabels);
+        refresh();
     });
+    $scope.$on('filterQueryChanged', function() {
+        refresh();
+    });
+    
+    $scope.filter = function () {
+        itemService.setFilterQuery($scope.query);
+    };               
 
-    $scope.fetch(null, []);
+    $scope.fetch($scope.query, $scope.labels);
 };
 
 
@@ -192,7 +206,6 @@ function LabelsCtrl($scope, $http, itemService){
             var index;
             var length;
             for(index=0; index<data.length; ++index) {
-                console.log(data[index]);
                 $scope.labels.push(data[index]);
             };
         });
