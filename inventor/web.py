@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 
 from flask import Flask, request, g
 from flask.ext import restful
@@ -11,10 +12,13 @@ from werkzeug import SharedDataMiddleware
 from . import config
 from . import database
 
+
 log = logging.getLogger('inventor')
 
 UPLOAD_FOLDER = '/path/to/the/uploads'
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+# Regexp to check for a valid field name (only alnum and underscores)
+FIELD_REGEXP = re.compile(r'^[A-Za-z0-9_]*$')
 
 app = Flask(__name__, template_folder='static')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -66,6 +70,17 @@ class Items(restful.Resource):
         labels = args.get('labels')
         pattern = args.get('pattern')
         labels = labels.split(',') if labels else None
+        page = args.get('page') or 1
+
+        orderkey = args.get('orderkey') or 'id'
+        if not re.match(FIELD_REGEXP, orderkey):
+            orderkey = 'id'
+        order = args.get('order')
+        if not order == 'asc' or order == 'desc':
+            order = 'asc'
+
+        order = orderkey+' '+order
+        
         log.debug('Getting items with labels: %s', labels)
         items = g.db.entities(
             query=pattern,
@@ -83,7 +98,7 @@ class Labels(restful.Resource):
         entity = args.get('entity') or 'item'
         substring = args.get('substring')
         log.debug('Getting labels for %s id %s', entity, entity_id)
-        return g.db.labels(entity_id, substring, entity)
+        return g.db.labels(entity_id, substring=substring, entity=entity)
 
     def post(self):
         """JSON string list should be provided as 

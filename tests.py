@@ -63,7 +63,7 @@ def fill_db(dbb, count=10, e='item'):
     for e in es:
         dbb.upsert_entity(e)
 
-def _make_labels(db, items, count='20'):
+def _make_labels(db, items, count=20):
     """Attach random labels to given list of items.
     Returns a dict {item_id : [labels...]}
     """

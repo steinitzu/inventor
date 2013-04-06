@@ -294,7 +294,8 @@ class Database(object):
             self.pool.putconn(conn)
         return result        
 
-    def entities(self, labels=None, query=None, entity='item', order='id desc'):
+    def entities(self, labels=None, query=None, entity='item', 
+                 page=None, order='id asc'):
         normalq = '''SELECT * FROM {} AS entity'''.format(entity)
         queries = []
 
@@ -314,10 +315,14 @@ class Database(object):
         q = AndQuery(qs)
         log.debug('queries: %s', qs)
         clause, subvals = q.clause()
-        if not clause:
-            query = normalq+' ORDER BY '+order
-        else:
-            query = normalq+' WHERE {} ORDER BY {}'.format(clause, order)
+        query = normalq
+        if clause:
+            query += ' WHERE {} '.format(clause)
+        query += ' ORDER BY '+order
+        if page:
+            limit = config['view']['pagelimit'].get()
+            offset = limit*page-limit
+            query += ' LIMIT {} OFFSET {} '.format(limit, offset)
         log.debug('Getting entities with sql:\n%s', query)
         return ResultIterator(self, self.query(query,subvals), entity=entity)
 
@@ -345,7 +350,7 @@ class Database(object):
             raise NoSuchEntityError('type: {} id: {} '.format(
                     strentity, entity_id))
 
-    def labels(self, entity_id=None, substring=None, entity='item'):
+    def labels(self, entity_id=None, entity='item', substring=None):
         """Get a string list of labels attached to 
         given `entity_id` of type `entity`, matching substring if any.
         If no id is provided, returns all labels for `entity`.
