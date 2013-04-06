@@ -66,6 +66,7 @@ class Items(restful.Resource):
         labels = args.get('labels')
         pattern = args.get('pattern')
         labels = labels.split(',') if labels else None
+        log.debug('Getting items with labels: %s', labels)
         items = g.db.entities(
             query=pattern,
             labels=labels,

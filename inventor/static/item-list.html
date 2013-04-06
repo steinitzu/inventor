@@ -7,6 +7,30 @@
       <select ng-model="orderProp">
         <option value="name">Alphabetical</option>
       </select>
+      <div class="container">
+        <div class="row">
+          
+          <div class="span2 container">
+          <ul class="labels" ng-controller="LabelsCtrl">
+            <li ng-repeat="label in labels">
+              <span class="label label-info" ng-click="addFilter(label)">
+                {{label}}
+              </span>
+            </li>
+          </ul>
+          </div>
+          <div class="span2 container">
+          <ul class="filterlabels" ng-controller="LabelsCtrl">
+            <li ng-repeat="label in filterLabels">
+              <span class="label label-success" ng-click="removeFilter(label)">
+                {{label}}
+              </span>
+            </li>
+          </ul>
+          </div>
+        </div>
+        <input model="itemService.filterLabels" name="itemService.filterLabels" />
+      </div>
     </div>
     <div class="span10">
       <table class="table table-striped rowlink">
@@ -43,14 +67,6 @@
           </tr>
         </tbody>
       </table>
-      <!--
-      <ul class="items">
-        <li ng-repeat="item in items | filter:query | orderBy:orderProp" class="thumbnail">
--          <a href="#/item/{{item.id}}" class="thumb"><img ng-src="{{item.picture_path}}"></a>
--          <a href="#/item/{{item.id}}">{{item.name}}</a>
--          <p>{{item.info}}</p>          
-        </li>
-        -->
     </div>
   </div>
 </div>

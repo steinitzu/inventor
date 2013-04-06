@@ -363,6 +363,7 @@ class Database(object):
             subvals.append('%%{}%%'.format(substring.lower()))
         if clauses:
             q += " WHERE "+" AND ".join(clauses)
+        q += ' ORDER BY label'
         rows = self.query(q, subvals)
         return [row['label'] for row in rows]
         

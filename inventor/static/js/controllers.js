@@ -1,14 +1,13 @@
-function ItemListCtrl($scope, $http) {
-    $http.get('items').success(function(data) {
-         $scope.items = data;
-         });
-};
+
 
 
 inventor.factory('itemService', function($rootScope) {
     var sharedService = {};
     sharedService.entityId = null;
     sharedService.label = null;
+    sharedService.labels = new Array();
+    sharedService.filterLabels = new Array();
+    sharedService.filterQuery = null;
     
     
     sharedService.prepForBroadCast = function(entityId) {
@@ -20,6 +19,42 @@ inventor.factory('itemService', function($rootScope) {
         this.label = label;
         this.broadcast('newLabel');
     };
+
+    sharedService.addLabel = function(label) {
+        this.labels.push(label);
+        this.broadcast('labelsChanged');
+    };
+    sharedService.removeLabel = function(label) {
+        index = this.labels.indexOf(label);
+        if (index == -1) {
+            return
+        };
+        this.labels.splice(index, 1);
+        this.broadcast('labelsChanged');
+    };
+
+    sharedService.addFilterLabel = function(label) {
+        if (this.filterLabels.indexOf(label) == -1) {
+            this.filterLabels.push(label);
+            this.broadcast('filterLabelsChanged');
+            this.removeLabel(label);
+        };
+    };
+
+    sharedService.removeFilterLabel = function(label) {
+        index = this.filterLabels.indexOf(label);
+        if (index == -1) {
+            return
+        };
+        this.filterLabels.splice(index, 1);
+        this.broadcast('filterLabelsChanged');
+        this.addLabel(label);
+    };
+    
+    sharedService.setFilterQuery = function(query) {
+        this.filterQuery = query;
+        this.broadCast('filterQueryChanged');
+    };
     
     sharedService.broadcast = function (name) {
         console.log('broadcasting: ', name);
@@ -28,6 +63,29 @@ inventor.factory('itemService', function($rootScope) {
 
     return sharedService;    
 });
+
+function ItemListCtrl($scope, $http, itemService) {
+    $scope.fetch = function(query, labels) {
+        $http({
+            method: 'GET',
+            url: 'items',
+            params: {
+                'pattern': query,
+                'labels': labels.join(',')
+            }}).success(function(data) {
+                $scope.items = data;
+            });
+    };
+
+    $scope.$on('filterLabelsChanged', function() {
+        $scope.fetch(itemService.filterQuery, itemService.filterLabels);
+    });
+    $scope.$on('filterQueryChanged', function() {
+        $scope.fetch(itemService.filterQuery, itemService.filterLabels);
+    });
+
+    $scope.fetch(null, []);
+};
 
 
 function ItemCtrl($scope, $http, $routeParams, $filter, itemService){    
@@ -121,13 +179,22 @@ function ItemLabelsCtrl($scope, $http, $filter, itemService){
 
 // Controller for getting all the labels in db
 function LabelsCtrl($scope, $http, itemService){
+    $scope.filterLabels = itemService.filterLabels;
+    $scope.labels = itemService.labels;
+
     $scope.fetch = function() {
         $http({
             method: 'GET',
             url: 'labels',
             params:{'entity': 'item'}
         }).success(function(data) {
-            $scope.labels = data;
+            $scope.labels.length = 0
+            var index;
+            var length;
+            for(index=0; index<data.length; ++index) {
+                console.log(data[index]);
+                $scope.labels.push(data[index]);
+            };
         });
     };
 
@@ -143,14 +210,22 @@ function LabelsCtrl($scope, $http, itemService){
         });
     };
     
-    $scope.submit = function() {
+    $scope.createSubmit = function() {
         itemService.newLabel($scope.typeaheadValue);
         $scope.typeaheadValue = '';
     };
+
+    $scope.addFilter = function (label) {
+        itemService.addFilterLabel(label);
+    };
+    $scope.removeFilter = function (label) {
+        itemService.removeFilterLabel(label);
+    };
+    $scope.fetch();
 };
 
 
-
+ItemListCtrl.inject = ['$scope', 'itemService'];
 ItemCtrl.inject = ['$scope', 'itemService'];
 ItemLabelsCtrl.inject = ['$scope', 'itemService'];
 LabelsCtrl.inject = ['$scope', 'itemService'];
