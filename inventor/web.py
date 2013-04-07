@@ -1,8 +1,9 @@
-"""The inventory web client."""
+from __future__ import division
 
 import logging
 import os
 import re
+import math
 
 from flask import Flask, request, g
 from flask.ext import restful
@@ -11,6 +12,8 @@ from werkzeug import SharedDataMiddleware
 
 from . import config
 from . import database
+
+"""The inventory web client."""
 
 
 log = logging.getLogger('inventor')
@@ -82,11 +85,22 @@ class Items(restful.Resource):
         order = orderkey+' '+order
         
         log.debug('Getting items with labels: %s', labels)
-        items = g.db.entities(
-            query=pattern,
-            labels=labels,
-            entity='item')
-        return [i.record for i in items]
+
+        kwargs = dict(query=pattern,
+                      labels=labels,
+                      entity='item',
+                      page=int(page),
+                      order=order)
+        items = g.db.entities(**kwargs)
+        kwargs['page'] = None
+        itemcount = g.db.count_entities(**kwargs)
+        if itemcount == 0:
+            pagecount = 1
+        else:
+            limit = config['view']['pagelimit'].as_number()
+            pagecount = int(math.ceil(itemcount/limit))
+        return {'entities':[i.record for i in items],
+                'pagecount':pagecount}
 
 class Labels(restful.Resource):
     def get(self):

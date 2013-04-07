@@ -292,11 +292,25 @@ class Database(object):
             result = cur.fetchone()[0]
         finally:
             self.pool.putconn(conn)
-        return result        
+        return result
 
     def entities(self, labels=None, query=None, entity='item', 
-                 page=None, order='id asc'):
-        normalq = '''SELECT * FROM {} AS entity'''.format(entity)
+                 page=None, order='id asc', count=False):
+        """Gets entities of given `entity` type.
+        `labels` is a list of string labels which will 
+        be matched against entities.
+        `query` can be any kind of `Query` object or a string which will 
+        be used as a substring when searching the table.
+        `page` can be None or any number. This will use the config value `pagelimit` 
+        to split resultset into pages. 
+        `order` should be a valid ORDER BY clause.
+        
+        When `count` is true, only the number of matching entities is returned.
+        """        
+        if count:
+            normalq = '''SELECT count(*) FROM {} AS entity'''.format(entity)
+        else:
+            normalq = '''SELECT * FROM {} AS entity'''.format(entity)
         queries = []
 
         if labels:
@@ -318,13 +332,17 @@ class Database(object):
         query = normalq
         if clause:
             query += ' WHERE {} '.format(clause)
-        query += ' ORDER BY '+order
+        if not count:
+            query += ' ORDER BY '+order
         if page:
             limit = config['view']['pagelimit'].get()
             offset = limit*page-limit
             query += ' LIMIT {} OFFSET {} '.format(limit, offset)
         log.debug('Getting entities with sql:\n%s', query)
-        return ResultIterator(self, self.query(query,subvals), entity=entity)
+        rows = self.query(query, subvals)
+        if count:
+            return rows[0][0]
+        return ResultIterator(self, rows, entity=entity)    
 
     def get_entity(self, entity_id=None, as_dict=False, entity='item'):
         """Returns the Entity with given `entity_id`.
@@ -349,6 +367,13 @@ class Database(object):
         except (IndexError, StopIteration):
             raise NoSuchEntityError('type: {} id: {} '.format(
                     strentity, entity_id))
+
+    def count_entities(self, **kwargs):
+        """Convenience method.
+        Same as `entities(count=True, **kwargs).
+        """
+        kwargs['count'] = True        
+        return self.entities(**kwargs)        
 
     def labels(self, entity_id=None, entity='item', substring=None):
         """Get a string list of labels attached to 

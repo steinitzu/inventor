@@ -33,6 +33,8 @@
       </div>
     </div>
     <div class="span10">
+      <pagination num-pages="noOfPages" current-page="currentPage"
+                  ng-click="selectPage(page.number)" />
       <table class="table table-striped rowlink">
         <thead>
           <tr>
@@ -67,6 +69,9 @@
           </tr>
         </tbody>
       </table>
+      <pagination num-pages="noOfPages" current-page="currentPage"
+                  ng-click="selectPage(page.number)" />
+
     </div>
   </div>
 </div>

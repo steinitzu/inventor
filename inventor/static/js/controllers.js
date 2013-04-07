@@ -67,21 +67,29 @@ inventor.factory('itemService', function($rootScope) {
 function ItemListCtrl($scope, $http, itemService) {
     $scope.query = itemService.filterQuery;
     $scope.labels = itemService.filterLabels;
+    $scope.noOfPages = 1;
+    $scope.currentPage = 1;
+    $scope.maxSize = 7;
 
-    $scope.fetch = function(query, labels) {
+    $scope.fetch = function(query, labels, page) {
         $http({
             method: 'GET',
             url: 'items',
             params: {
                 'pattern': query,
-                'labels': labels.join(',')
+                'labels': labels.join(','),
+                'page': page
             }}).success(function(data) {
-                $scope.items = data;
+                $scope.items = data.entities;
+                $scope.noOfPages = data.pagecount;
             });
     };
 
     var refresh = function() {
-        $scope.fetch(itemService.filterQuery, itemService.filterLabels);
+        $scope.fetch(
+            itemService.filterQuery,
+            itemService.filterLabels,
+            $scope.currentPage);
     };
 
     $scope.$on('filterLabelsChanged', function() {
@@ -93,12 +101,15 @@ function ItemListCtrl($scope, $http, itemService) {
     $scope.$on('filterQueryChanged', function() {
         refresh();
     });
+    $scope.$watch('currentPage', function() {
+        refresh();
+    });
     
     $scope.filter = function () {
         itemService.setFilterQuery($scope.query);
-    };               
+    };
 
-    $scope.fetch($scope.query, $scope.labels);
+    $scope.fetch($scope.query, $scope.labels, $scope.page);
 };
 
 
