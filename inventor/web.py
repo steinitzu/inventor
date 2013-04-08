@@ -121,12 +121,28 @@ class Labels(restful.Resource):
         args = request.args
         entity_id = args.get('entity_id')
         entity = args.get('entity') or 'item'
-        labels = request.json
+        labels = args.get('labels') or ''
+        labels = labels.split(',')
         log.debug('setting labels [%s] for %s with id: %s', 
                   labels,
                   entity, 
                   entity_id);
         g.db.attach_labels(entity_id, labels, entity)
+
+    def delete(self):
+        """Delete labels from entity.
+        """
+        args = request.args
+        entity_id = args.get('entity_id')
+        entity = args.get('entity') or 'item'
+        labels = args.get('labels') or ''
+        labels = labels.split(',')
+        log.debug('request jason: %s', request.json)
+        log.debug('Removing labels [%s] from %s with id: %s',
+                  labels,
+                  entity,
+                  entity_id);
+        g.db.remove_labels(entity_id, labels, entity)
 
 class Index(restful.Resource):
     def _read(self, path):

@@ -440,7 +440,8 @@ class Database(object):
         q = '''INSERT INTO {}_label (label, entity_id) 
              VALUES (%s, %s)'''.format(entity)
         for l in labels:
-            self.mutate(q, (l.lower(),entity_id))
+            if l:
+                self.mutate(q, (l.lower(),entity_id))
 
     def remove_labels(self, entity_id, labels, entity='item'):
         """Remove given list of labels from given item(id)."""

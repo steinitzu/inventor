@@ -20,6 +20,12 @@ inventor.factory('itemService', function($rootScope) {
         this.broadcast('newLabel');
     };
 
+    sharedService.attachLabel = function(label) {
+        // attach label to current entityId
+        this.label = label;
+        this.broadcast('attachLabel');
+    };
+
     sharedService.addLabel = function(label) {
         this.labels.push(label);
         this.broadcast('labelsChanged');
@@ -113,7 +119,7 @@ function ItemListCtrl($scope, $http, itemService) {
 };
 
 
-function ItemCtrl($scope, $http, $routeParams, $filter, itemService){    
+function ItemCtrl($scope, $http, $routeParams, $filter, $location, itemService){    
 
     $scope.entityId = $routeParams.itemId;
 
@@ -142,6 +148,8 @@ function ItemCtrl($scope, $http, $routeParams, $filter, itemService){
                     //$location.path('/item/'+data);
                     itemService.prepForBroadCast($scope.entityId);
                     itemService.broadcast('itemSaved');
+                    $scope.fetch();
+                    $scope.itemForm.$setPristine();
                 });
     };
     $scope.fetch();
@@ -177,14 +185,44 @@ function ItemLabelsCtrl($scope, $http, $filter, itemService){
         };
     };
 
+    $scope.strip = function(label) {
+        console.log('stripping label', [label]);
+        index = $scope.labels.indexOf(label);
+        if (index > -1) {
+            $scope.labels.splice(index, 1);
+        };
+        console.log('stripping label', [label]);
+        if (itemService.entityId) {
+            labels = new Array();
+            labels.push(label);
+            $scope.remove(itemService.entityId, labels);
+        };
+
+    };
+
+    $scope.remove = function(entityId, labels) {
+        labels = labels.join(',')
+        $http({
+            method: 'DELETE',
+            url: 'labels',
+            params: {
+                'entity': 'item',
+                'entity_id': entityId,
+                'labels': labels}
+        }).success(function(data) {
+                    $scope.fetch(entityId);
+        });
+    };
+
     $scope.store = function(entityId, labels) {
+        labels = labels.join(',')
         $http({
             method: 'POST',
             url: 'labels',
             params: {
                 'entity': 'item',
-                'entity_id': entityId},
-            data: $filter('json')(labels)
+                'entity_id': entityId,
+                'labels': labels}
         }).success(function(data) {
                     $scope.fetch(entityId);
         });
@@ -196,7 +234,7 @@ function ItemLabelsCtrl($scope, $http, $filter, itemService){
     $scope.$on('itemSaved', function () {
         $scope.store(itemService.entityId, $scope.labels);
     });
-    $scope.$on('newLabel', function () {
+    $scope.$on('attachLabel', function () {
         $scope.attach(itemService.entityId, itemService.label)
     });
 };
@@ -235,7 +273,7 @@ function LabelsCtrl($scope, $http, itemService){
     };
     
     $scope.createSubmit = function() {
-        itemService.newLabel($scope.typeaheadValue);
+        itemService.attachLabel($scope.typeaheadValue);
         $scope.typeaheadValue = '';
     };
 

@@ -18,9 +18,62 @@ table.rowlink tr:hover {
     background-color:#ffe;
 }
 
+ul.labelcloud {
+    list-style: none;
+    min-height: 60px;
+}
+
+li.labelcloud {
+    display: inline;
+}
+
+span.labelcloud { 
+    cursor: pointer;
+    background-color: #66AAEE;
+    margin: 1px;
+    font-size: 16px;
+}
+span.labelcloud:hover {
+    background-color: #680000;
+}
+
+span.labelcloud-filter { 
+    cursor: pointer;
+    background-color: green;
+    font-size: 13px;
+}
+
+.labelcloud-container {
+    
+}
+
 table.rowlink td a {
     text-decoration: none; 
     display: block; 
     padding: 0px; 
     height: 100%;
 }
+
+
+.supercontainer {
+    overflow-x: hidden;
+}
+.supercontainer-inner {
+    width: 2820px;
+  -webkit-transition: margin-left 0.35s ease;
+     -moz-transition: margin-left 0.35s ease;
+       -o-transition: margin-left 0.35s ease;
+          transition: margin-left 0.35s ease;
+}
+.supercontainer-inner > .container {
+    float: left!important;
+}
+
+
+.supercontainer-inner.view-1 { margin-left: 0; }
+.supercontainer-inner.view-2 { margin-left: -940px; }
+.supercontainer-inner.view-3 { margin-left: -1880px; }
+
+
+/* bullshit below */
+

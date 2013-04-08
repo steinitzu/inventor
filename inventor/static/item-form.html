@@ -1,59 +1,74 @@
-<div class="container-fluid">  
-  <div class="row-fluid">
-    <form name="itemForm" ng-submit="submit()" ng-controller="ItemCtrl">
-      <h3>{{item.id}} - {{item.name}}</h3>
-      <fieldset>
-        <div class="controls">
+<div class="supercontainer container">  
+  <div class="container span6 row">
+    <form name="itemForm" ng-submit="submit()" ng-controller="ItemCtrl" >
+      <h4>{{item.id}} - {{item.name}}</h4>
+      <div class="alert alert-info" ng-show="itemForm.$dirty">
+        You have unsaved changes, motherfucker!
+      </div>
+      <fieldset >
+        <div class="controls controls-row">
           <label>Name</label>
-          <input class="span5" type="text" placeholder="Item name.." 
+          <input class="" type="text" placeholder="Item name.." 
                  ng-model="item.name" name="name" required />
           <label>Location</label>
-          <input class="span5" type="text" placeholder="Item location.." 
+          <input class="" type="text" placeholder="Item location.." 
                  ng-model="item.location" name="location" required />
         </div>
-        <div class="controls controls.row">
-          <label>Quantity</label>
-          <input type="number" class="span2"
+        <div class="controls controls-row">
+          <label>Quantity/unit</label>
+          <input type="number" class="span1"
                  ng-model="item.quantity" name="quantity" required />
-          <input type="text" placeholder="unit.." class="span3"
+          <input type="text" placeholder="unit.." 
                  ng-model="item.unit" name="unit" required/>
         </div>
-        <div class="controls">
+        <div class="controls controls-row">
           <label>Condition</label>
-          <input class="span5" type="text" placeholder="Item condition.." 
+          <input class="" type="text" placeholder="Item condition.." 
                  ng-model="item.condition" name="condition"/>
           
           <label>Part_Numbers</label>
-          <textarea class="span5" placeholder="Item part numbers.." rows="6"
+          <textarea class="" placeholder="Item part numbers.." rows="6"
                     ng-model="item.part_numbers" name="part_numbers">
           </textarea>
           <label>Info</label>
-          <textarea class="span5" placeholder="Item part numbers.." rows="6"
+          <textarea class="" placeholder="Item part numbers.." rows="6"
                     ng-model="item.info" name="info">
           </textarea>
         </div>
-        <span class="error" ng-show="itemForm.input.$error.required">Required!
+        <span class="error" ng-show="itemForm.input.$error.required">
+          Required!
         </span>
-        <input type="submit" id="submit" value="Submit" />
-      </fieldset>
-
-    </form>
-    <form name="labelForm" ng-submit="createSubmit()" ng-controller="LabelsCtrl">
-      <fieldset>
-        <div class="controls">
-          <input name="typeahead" type="text" ng-model="typeaheadValue" bs-typeahead="typeaheadFn" 
-                 autocomplete="off" />
-          <input type="submit" id="submit" value="Attach" />
-        </div>
-      </fieldset>
-    </form>
-    <form name="itemlabelForm" ng-controller="ItemLabelsCtrl">
-      <fieldset>
-        <div class="controls">
-          <textarea rows="6" ng-model="labels" name="labels">
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="submit" ng-disabled="itemForm.$pristine">
+            Save changes
+          </button>
         </div>
       </fieldset>
     </form>
   </div>
+  <div class="container span5 row labelcloud-container">      
+    <h4>Labels!</h4>
+    <form name="labelForm" ng-submit="createSubmit()" ng-controller="LabelsCtrl">
+      <div class="row" ng-controller="ItemLabelsCtrl">
+        <ul class="labelcloud span4">
+          <li  class="labelcloud" ng-repeat="label in labels">
+            <span class="label labelcloud" ng-click="strip(label)">{{label}}</span>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <fieldset>
+          <div class="input-append controls">
+            <input name="typeahead" type="text" ng-model="typeaheadValue" bs-typeahead="typeaheadFn" 
+                   autocomplete="off" />
+            <input class="btn" type="submit" id="submit" value="Attach label" />
+          </div>
+        </fieldset>
+      </div>
+    </form>
+  </div>
 </div>
-     
+
+
+
+
