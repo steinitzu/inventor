@@ -1,0 +1,10 @@
+
+database:	
+    host: localhost
+    dbname: inventor
+    #user: myuser
+    #password: mypassword
+
+view:
+    #number of items per page in ui
+    pagelimit: 25
