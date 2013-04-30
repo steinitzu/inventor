@@ -19,6 +19,12 @@ setup(name='inventor',
       packages=[
         'inventor',
       ],
+
+      entry_points={
+          'console_scripts': [
+              'inventorsv = inventor.web:main',
+          ],
+      },
       
 
       install_requires=[

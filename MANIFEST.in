@@ -1,1 +1,3 @@
 include inventor/schema.sql
+recursive-include inventor/static *
+include inventor/config_default.yaml

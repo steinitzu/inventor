@@ -1,5 +1,4 @@
-
-database:	
+database:
     host: localhost
     dbname: inventor
     #user: myuser
