@@ -38,3 +38,12 @@ class FixedDict(dict):
         else:
             super(FixedDict, self).__setitem__(key, value)
             self.dirty[key] = True
+
+
+def isiterable(val):
+    """Return True if value is iterable but not a string.
+    """
+    if hasattr(val, '__iter__') and not isinstance(val, basestring):
+        return True
+    else: 
+        return False

@@ -9,6 +9,7 @@ import psycopg2
 import psycopg2.extras
 
 from .util import FixedDict
+from .util import isiterable
 from . import config
 
 log = logging.getLogger('inventor')
@@ -375,27 +376,7 @@ class Database(object):
         kwargs['count'] = True        
         return self.entities(**kwargs)        
 
-    def labels(self, entity_id=None, entity='item', substring=None):
-        """Get a string list of labels attached to 
-        given `entity_id` of type `entity`, matching substring if any.
-        If no id is provided, returns all labels for `entity`.
-        """
-        # TODO: prevent injection
-        q = "SELECT DISTINCT label FROM {}_label".format(entity) 
 
-        subvals = []
-        clauses = []
-        if entity_id:
-            clauses.append('entity_id = %s')
-            subvals.append(entity_id)
-        if substring:
-            clauses.append('label LIKE %s')
-            subvals.append(u'%%{}%%'.format(substring.lower()))
-        if clauses:
-            q += " WHERE "+" AND ".join(clauses)
-        q += ' ORDER BY label'
-        rows = self.query(q, subvals)
-        return [row['label'] for row in rows]
         
 
     def upsert_entity(self, obj, entity='item'):
@@ -432,6 +413,47 @@ class Database(object):
             entityid = obj['id']
         newobj = self.get_entity(entityid, as_dict=True)
         obj.fill(newobj)
+
+
+    def labels(self, entity_id=None, entity='item', substring=None):
+        """Get a string list of labels attached to 
+        given `entity_id` (or list of ids) of type `entity`, 
+        matching substring if any.
+        If no id is provided, returns all labels for `entity`.
+        """
+        # TODO: prevent injection
+        q = "SELECT DISTINCT label FROM {}_label".format(entity) 
+
+        subvals = []
+        clauses = []
+        if entity_id and isiterable(entity_id):            
+            clauses.append('entity_id = ANY(%s)')
+            subvals.append(list(entity_id))
+        elif entity_id:
+            clauses.append('entity_id = %s')
+            subvals.append(entity_id)
+        if substring:
+            clauses.append('label LIKE %s')
+            subvals.append(u'%%{}%%'.format(substring.lower()))
+        if clauses:
+            q += " WHERE "+" AND ".join(clauses)
+        q += ' ORDER BY label'
+        log.debug('getting labels with sql:\n%s', q)
+        rows = self.query(q, subvals)
+        return [row['label'] for row in rows]
+
+    def sibling_labels(self, labels, entity='item'):
+        """Get all labels which are held by entities which also hold all 
+        the labels in `labels`.
+        """
+        items = self.entities(labels=labels, entity=entity)
+        iids = [r['id'] for r in items.rows]
+        if not iids: return []
+        rlabels = sorted(self.labels(entity_id=iids))
+        for l in labels:
+            try: rlabels.remove(l.lower())
+            except ValueError: pass            
+        return rlabels
 
     def attach_labels(self, entity_id, labels, entity='item'):
         """Attach given list of labels to given entity_id."""
