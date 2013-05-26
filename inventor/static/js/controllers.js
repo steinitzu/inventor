@@ -39,6 +39,7 @@ inventor.factory('itemService', function($rootScope) {
         this.broadcast('labelsChanged');
     };
 
+    // Adds label to filter list and removes it from menu
     sharedService.addFilterLabel = function(label) {
         if (this.filterLabels.indexOf(label) == -1) {
             this.filterLabels.push(label);
@@ -249,7 +250,8 @@ function LabelsCtrl($scope, $http, itemService){
         $http({
             method: 'GET',
             url: 'labels',
-            params:{'entity': 'item'}
+            params:{'entity': 'item',
+                    'siblings': $scope.filterLabels.join(',')}
         }).success(function(data) {
             $scope.labels.length = 0
             var index;
@@ -284,6 +286,10 @@ function LabelsCtrl($scope, $http, itemService){
         itemService.removeFilterLabel(label);
     };
     $scope.fetch();
+
+    $scope.$on('filterLabelsChanged', function() {
+        $scope.fetch();
+    });
 };
 
 

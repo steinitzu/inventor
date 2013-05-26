@@ -111,7 +111,11 @@ class Labels(restful.Resource):
         entity_id = args.get('entity_id')
         entity = args.get('entity') or 'item'
         substring = args.get('substring')
+        siblings = args.get('siblings') or []
         log.debug('Getting labels for %s id %s', entity, entity_id)
+        if siblings:
+            siblings = siblings.split(',')
+            return g.db.sibling_labels(labels=siblings, entity='item')        
         return g.db.labels(entity_id, substring=substring, entity=entity)
 
     def post(self):
