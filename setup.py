@@ -7,7 +7,7 @@ def _read(fn):
     return open(path).read()
 
 setup(name='inventor',
-      version='1.0-pre-alpha.1',
+      version='1.0-pre-alpha.2',
       description='Product inventory system.',
       author='Steinthor Palsson',
       author_email='steini90@gmail.com',
