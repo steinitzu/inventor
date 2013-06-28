@@ -24,6 +24,13 @@ CREATE TABLE IF NOT EXISTS item(
         info TEXT,
         picture_path TEXT);
 
+CREATE TABLE IF NOT EXISTS item_image(
+        id SERIAL PRIMARY KEY, 
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        file_path TEXT
+        entity_id INTEGER REFERENCES item(id) ON DELETE CASCADE);
+
 CREATE TABLE IF NOT EXISTS item_label(
         id SERIAL PRIMARY KEY,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -94,6 +101,12 @@ AFTER INSERT OR UPDATE OR DELETE ON item_label
 FOR EACH ROW EXECUTE 
 PROCEDURE update_activity_log();
 
+DROP TRIGGER IF EXISTS update_activity_log_trigger ON item_image;
+CREATE TRIGGER update_activity_log_trigger
+AFTER INSERT OR UPDATE OR DELETE ON item_image
+FOR EACH ROW EXECUTE 
+PROCEDURE update_activity_log();
+
 --triggers to update mtimes 
 CREATE OR REPLACE FUNCTION update_mtime()
 RETURNS TRIGGER AS $$
@@ -112,6 +125,12 @@ PROCEDURE update_mtime();
 DROP TRIGGER IF EXISTS update_mtime_trigger ON item_label;
 CREATE TRIGGER update_mtime_trigger
 BEFORE UPDATE ON item_label
+FOR EACH ROW EXECUTE
+PROCEDURE update_mtime();
+
+DROP TRIGGER IF EXISTS update_mtime_trigger ON item_image;
+CREATE TRIGGER update_mtime_trigger
+BEFORE UPDATE ON item_image
 FOR EACH ROW EXECUTE
 PROCEDURE update_mtime();
 
