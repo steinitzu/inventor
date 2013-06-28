@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS item_image(
         id SERIAL PRIMARY KEY, 
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        file_path TEXT
+        file_path TEXT,
         entity_id INTEGER REFERENCES item(id) ON DELETE CASCADE);
 
 CREATE TABLE IF NOT EXISTS item_label(

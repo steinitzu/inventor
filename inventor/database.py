@@ -102,8 +102,11 @@ class Item(Entity):
     defaults = {'quantity':1,
                 'unit':'pcs'}
 
+class ItemImage(Entity):
+    name = 'item_image'
+
 # TODO: Register classes on creation and add here (plugin stuff)
-ENTITY_CLASSES = {'item':Item}
+ENTITY_CLASSES = {'item':Item, 'item_image':Item}
 
 # Query class idea tolen from beets by Adrian Sampson #
 class Query(object):
@@ -200,7 +203,7 @@ class LabelsQuery(MultiQuery):
 #
 
 class ResultIterator(object):
-    entity_cls = {'item' : Item}
+    entity_cls = ENTITY_CLASSES
     def __init__(self, db, rows, entity='item', offset=0):
         self.rows = rows
         self.entity = self.entity_cls[entity]

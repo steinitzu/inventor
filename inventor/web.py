@@ -5,10 +5,11 @@ import os
 import re
 import math
 
-from flask import Flask, request, g
+from flask import Flask, request, g, redirect, url_for
 from flask.ext import restful
 from flask import make_response
-from werkzeug import SharedDataMiddleware
+from werkzeug import SharedDataMiddleware, secure_filename
+from flask import send_from_directory
 
 from . import config
 from . import database
@@ -18,12 +19,14 @@ from . import database
 
 log = logging.getLogger('inventor')
 
-UPLOAD_FOLDER = '/path/to/the/uploads'
+
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 # Regexp to check for a valid field name (only alnum and underscores)
 FIELD_REGEXP = re.compile(r'^[A-Za-z0-9_]*$')
 
 app = Flask(__name__, template_folder='static')
+
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'upload')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config[''] = UPLOAD_FOLDER
 api = restful.Api(app)
@@ -41,6 +44,10 @@ def get_db():
 @app.before_request
 def before_request():
     g.db = get_db()    
+
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
 class Item(restful.Resource):
     def get(self, entity_id=None):
@@ -64,6 +71,38 @@ class Item(restful.Resource):
         item.update(data)
         g.db.upsert_entity(item)
         return item['id'], status
+
+class ItemImage(restful.Resource):
+
+    def _read(self, path):
+        return open(path).read()
+
+    def get(self, entity_id=None):
+        args = request.args
+        log.debug(args)
+        entity_id = entity_id or args.get('entity_id')
+        log.debug('Getting item with id: %s', entity_id)
+        log.debug('MIMETYPE: %s', request.mimetype)
+        try:
+            e = g.db.get_entity(entity_id=entity_id, entity='item')
+        except database.NoSuchEntityError as e:
+            restful.abort(404, message='No item with id: '+str(entity_id))        
+        return send_from_directory(app.config['UPLOAD_FOLDER'], e['picture_path'])
+
+    def post(self):
+        args = request.args
+        entity_id = args['entity_id']
+        e = g.db.get_entity(entity_id=entity_id, entity='item')        
+        files = request.files
+        file_ = files.values()[0]
+        #file_ = request.files['file']        
+        if file_ and allowed_file(file_.filename):
+            filename = secure_filename(file_.filename)
+            file_.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            e['picture_path']=filename
+            g.db.upsert_entity(e)
+            return self.get(entity_id=entity_id)
+                      
 
 class Items(restful.Resource):
     def get(self):
@@ -164,6 +203,8 @@ api.add_resource(Item, '/item/<int:entity_id>')
 api.add_resource(Items, '/items')
 api.add_resource(Index, '/')
 api.add_resource(Labels, '/labels')
+api.add_resource(ItemImage, '/item_image')
+api.add_resource(ItemImage, '/item_image/<int:entity_id>')
 
 def main():
     config.read()
