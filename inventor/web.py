@@ -20,7 +20,7 @@ from . import database
 log = logging.getLogger('inventor')
 
 
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 # Regexp to check for a valid field name (only alnum and underscores)
 FIELD_REGEXP = re.compile(r'^[A-Za-z0-9_]*$')
 
@@ -77,32 +77,51 @@ class ItemImage(restful.Resource):
     def _read(self, path):
         return open(path).read()
 
+    def _return(self, filename):
+        d = app.config['UPLOAD_FOLDER']
+        exists = os.path.exists(os.path.join(d, filename))
+        if not exists:
+            return send_from_directory(d, 'placeholder.png')
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
     def get(self, entity_id=None):
+        ph = 'placeholder.png'
         args = request.args
         log.debug(args)
         entity_id = entity_id or args.get('entity_id')
+        if not entity_id:
+            return self._return(ph)
         log.debug('Getting item with id: %s', entity_id)
         log.debug('MIMETYPE: %s', request.mimetype)
         try:
             e = g.db.get_entity(entity_id=entity_id, entity='item')
         except database.NoSuchEntityError as e:
-            restful.abort(404, message='No item with id: '+str(entity_id))        
-        return send_from_directory(app.config['UPLOAD_FOLDER'], e['picture_path'])
+            return self._return(ph)
+            restful.abort(404, message='No item with id: '+str(entity_id))
+        pp = e['picture_path']
+        log.debug('pp %s', pp)
+        if not pp:
+            return self._return(ph)
+        return self._return(pp)
 
     def post(self):
         args = request.args
+        log.debug('rargs: %s', args)
         entity_id = args['entity_id']
         e = g.db.get_entity(entity_id=entity_id, entity='item')        
         files = request.files
+        log.debug('Request files: %s', files)
+        log.debug('Request data: %s', request.data)
         file_ = files.values()[0]
         #file_ = request.files['file']        
         if file_ and allowed_file(file_.filename):
             filename = secure_filename(file_.filename)
+            ext = os.path.splitext(filename)[1]
+            filename = '{}{}'.format(entity_id, ext)
             file_.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             e['picture_path']=filename
             g.db.upsert_entity(e)
-            return self.get(entity_id=entity_id)
-                      
+            return self.get(entity_id=entity_id)                      
 
 class Items(restful.Resource):
     def get(self):

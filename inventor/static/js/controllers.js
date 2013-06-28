@@ -71,6 +71,9 @@ inventor.factory('itemService', function($rootScope) {
     return sharedService;    
 });
 
+
+
+
 function ItemListCtrl($scope, $http, itemService) {
     $scope.query = itemService.filterQuery;
     $scope.labels = itemService.filterLabels;
@@ -123,6 +126,7 @@ function ItemListCtrl($scope, $http, itemService) {
 function ItemCtrl($scope, $http, $routeParams, $filter, $location, itemService){    
 
     $scope.entityId = $routeParams.itemId;
+    $scope.files = [];
 
     $scope.fetch = function() {
         $http({
@@ -131,6 +135,7 @@ function ItemCtrl($scope, $http, $routeParams, $filter, $location, itemService){
             params:{'entity_id':$scope.entityId}}).success(
                 function(data) {
                     $scope.item = data;
+                    $scope.imageSource = '/item_image?entity_id='+$scope.item.id
                     $scope.item.quantity = Number($scope.item.quantity);
                     $scope.item.sale_price = Number($scope.item.quantity);
                     itemService.prepForBroadCast($scope.item.id);
@@ -153,7 +158,46 @@ function ItemCtrl($scope, $http, $routeParams, $filter, $location, itemService){
                     $scope.itemForm.$setPristine();
                 });
     };
+
+    
+    $scope.$on("fileSelected", function (event, args) {
+        console.log('file selected');
+        $scope.$apply(function () {
+            $scope.files.push(args.file);
+            
+        });                      
+    });
+
+    $scope.uploadImage = function() {
+        console.log('scope file '+$scope.files);
+        $http({
+            method: 'POST', 
+            url: '/item_image',
+            headers: { 'Content-Type': false},
+            params: { 'entity_id': $scope.item.id },
+            transformRequest: function (data) {
+                var formData = new FormData();
+                
+                for (var i = 0;  i < data.files; i++) {
+                    formData.append("file" + i, data.files[i]);
+                }
+                console.log('data files: '+data.files);
+                console.log('formdata: '+formData);
+                return formData;                
+            },
+            data: {'files': $scope.files}}).
+            success(
+                function (data, status, headers, config) {
+                    alert("success!");
+                }).
+            error(function (data, status, headers, config) {
+                alert('error');
+            });
+    };    
+
+
     $scope.fetch();
+
 };
 
 // Gets and sets labels for items
