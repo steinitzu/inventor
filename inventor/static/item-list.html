@@ -8,29 +8,29 @@
           <select ng-model="orderProp">
             <option value="name">Alphabetical</option>
           </select>
-        <div class="container" ng-controller="LabelsCtrl">
-          <div class="row-fluid">
-            <ul class="labelcloud span3" >
-              <li class="labelcloud" ng-repeat="label in labels">
-                <span class="label labelcloud" ng-click="addFilter(label)">
-                  {{label}}
-                </span>
-              </li>
-            </ul>
-          </div>
-            <h4 ng-show="filterLabels.length > 0">Selected labels</h4>
-          <div class="row-fluid">
+        <!-- <div class="container" ng-controller="LabelsCtrl"> -->
+        <!--   <div class="row-fluid"> -->
+        <!--     <ul class="labelcloud span3" > -->
+        <!--       <li class="labelcloud" ng-repeat="label in labels"> -->
+        <!--         <span class="label labelcloud" ng-click="addFilter(label)"> -->
+        <!--           {{label}} -->
+        <!--         </span> -->
+        <!--       </li> -->
+        <!--     </ul> -->
+        <!--   </div> -->
+        <!--     <h4 ng-show="filterLabels.length > 0">Selected labels</h4> -->
+        <!--   <div class="row-fluid"> -->
 
-            <ul class="labelcloud span3">
-              <li class="labelcloud" ng-repeat="label in filterLabels">
-                <span class="label labelcloud-filter" ng-click="removeFilter(label)">
-                  {{label}}
-                </span>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <input model="itemService.filterLabels" name="itemService.filterLabels" />
+        <!--     <ul class="labelcloud span3"> -->
+        <!--       <li class="labelcloud" ng-repeat="label in filterLabels"> -->
+        <!--         <span class="label labelcloud-filter" ng-click="removeFilter(label)"> -->
+        <!--           {{label}} -->
+        <!--         </span> -->
+        <!--       </li> -->
+        <!--     </ul> -->
+        <!--   </div> -->
+        <!-- </div> -->
+        <!-- <input model="itemService.filterLabels" name="itemService.filterLabels" /> -->
       </div>
     </div><!--span-->
     <div class="span9">

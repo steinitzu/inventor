@@ -153,6 +153,19 @@ class LabelQuery(Query):
             self.entity, DB_FORMAT_STR)
         return c, (self.label,)
 
+class LabelSubstringQuery(Query):
+    """
+    Get entities where the label matches substring.
+    """
+    def __init__(self, labelsub, entity='item'):
+        self.labelsub = u'%%{}%%'.format(labelsub)
+        self.entity = entity
+
+    def clause(self):
+        c = """entity.id IN (
+            SELECT entity_id FROM {}_label WHERE label ILIKE {})
+        """.format(self.entity, DB_FORMAT_STR)
+        return c, (self.labelsub,)
 
 class MultiQuery(Query):
     """Makes one query out of many field queries."""
@@ -181,8 +194,9 @@ class AndQuery(MultiQuery):
 
 class AnySubStringQuery(MultiQuery):
     """Searches all fields of given `entity` for given `pattern`.
+    `search_labels` searches the labels by substring as well.
     """
-    def __init__(self, pattern, entity='item', icase=False):
+    def __init__(self, pattern, entity='item', icase=False, search_labels=True):
         self.subqueries = []
         if icase: cls = ICaseSubstringQuery
         else: cls = SubStringQuery
@@ -190,6 +204,9 @@ class AnySubStringQuery(MultiQuery):
             field+='::text'
             q = cls(field, pattern)
             self.subqueries.append(q)
+        if search_labels:
+            sq = LabelSubstringQuery(pattern, entity=entity)
+            self.subqueries.append(sq)
 
 class LabelsQuery(MultiQuery):
     def __init__(self, labels, entity='item'):
@@ -342,7 +359,7 @@ class Database(object):
             limit = config['view']['pagelimit'].get()
             offset = limit*page-limit
             query += ' LIMIT {} OFFSET {} '.format(limit, offset)
-        log.debug('Getting entities with sql:\n%s', query)
+        log.debug('Getting entities with sql:\n%s\nparams:%s', query,subvals)
         rows = self.query(query, subvals)
         if count:
             return rows[0][0]
