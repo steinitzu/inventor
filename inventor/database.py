@@ -389,6 +389,12 @@ class Database(object):
             raise NoSuchEntityError('type: {} id: {} '.format(
                     strentity, entity_id))
 
+    def deactive_entity(self, entity_id, entity='item'):
+        q = 'DELETE FROM {} WHERE id = %s'.format(entity)
+        params = (entity_id,)
+        result = self.mutate(query, params)
+        return result
+
     def count_entities(self, **kwargs):
         """Convenience method.
         Same as `entities(count=True, **kwargs).

@@ -159,6 +159,14 @@ function ItemCtrl($scope, $http, $routeParams, $filter, $location, itemService){
                 });
     };
 
+    $scope.destroy = function() {
+        $http({
+            method:'DELETE', 
+            url:'item',
+            params:{id:item.id}
+        });
+    };
+
     
     $scope.$on("fileSelected", function (event, args) {
         console.log('file selected');

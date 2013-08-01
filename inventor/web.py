@@ -72,6 +72,10 @@ class Item(restful.Resource):
         g.db.upsert_entity(item)
         return item['id'], status
 
+    def delete(self, entity_id=None):
+        entity_id = entity_id or args.get('entity_id')
+        return g.db.delete_entity(entity_id=entity_id, entity='item')
+
 class ItemImage(restful.Resource):
 
     def _read(self, path):
